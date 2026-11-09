@@ -5,6 +5,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { actionRpc, findingKey, preferences, statusRpc, type SessionView } from "../shared/contracts";
+import { UsagePanel } from "./usage";
 
 export function OverseerScreen({ theme, layout, navigation, host, params }: PluginScreenProps) {
   const status = useRpc(statusRpc), act = useRpc(actionRpc);
@@ -15,6 +16,8 @@ export function OverseerScreen({ theme, layout, navigation, host, params }: Plug
   const [showEvidence, setShowEvidence] = useState<string | null>(null);
   const [onlyConcerns, setOnlyConcerns] = useState(false);
   const [expanded, setExpanded] = useState<string[]>([]);
+  const [view, setView] = useState<"sessions" | "usage">(params.view === "usage" ? "usage" : "sessions");
+  useEffect(() => { if (params.view === "usage") setView("usage"); }, [params.view]);
   const colors = theme.colors;
   const text = { color: colors.foreground, fontSize: 15 };
   const muted = { color: colors.foregroundMuted, fontSize: 13 };
@@ -35,6 +38,11 @@ export function OverseerScreen({ theme, layout, navigation, host, params }: Plug
       <Text style={{ ...text, fontSize: layout.compact ? 28 : 36, fontWeight: "700", letterSpacing: -1 }}>Overseer</Text>
       <Text style={muted}>{query.data?.enabled ? `${sessions.filter(session => session.status !== "not watched").length} sessions watched` : "Paused"}{query.data?.busy ? " · Reviewing activity" : ""}</Text>
     </View>
+    <View style={{flexDirection: "row", gap: 8}}>
+      {button("Sessions", () => setView("sessions"), view === "sessions")}
+      {button("Usage", () => setView("usage"), view === "usage")}
+    </View>
+    {view === "usage" ? <UsagePanel theme={theme} host={host} layout={layout} navigation={navigation} /> : <>
     {(query.error || query.data?.error || mutation.error) && <Text accessibilityRole="alert" style={text}>{(mutation.error ?? query.error)?.message ?? query.data?.error}</Text>}
     {query.isPending && <ActivityIndicator color={colors.foreground} />}
     {!query.isPending && !sessions.length && <View style={{ gap: 12 }}><Text style={text}>No sessions in the selected projects.</Text><Text style={muted}>Choose projects in Settings → Plugins → Overseer.</Text></View>}
@@ -107,6 +115,7 @@ export function OverseerScreen({ theme, layout, navigation, host, params }: Plug
           </View>
         </View>
       </>}
+    </>}
     </>}
   </ScrollView>;
 }

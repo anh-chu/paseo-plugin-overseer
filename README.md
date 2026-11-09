@@ -27,6 +27,14 @@ The detail view applies suggested tab and workspace names. It checks the current
 
 Automatic tab naming is off by default. When enabled, it changes only generic names or names previously set by Overseer. An external tab name change locks further automatic changes. Existing naming plugins are not disabled.
 
+## Usage
+
+Open **Usage** beside **Sessions**, or use **Open Overseer usage** in Command Center. The view shows reported token totals, cached input, reasoning output, call status, call time, payload sizes, daily totals, recent calls, and project/purpose breakdowns. Period filters use UTC. Cache is a subset of input, and reasoning is a subset of output; neither is added twice to total tokens. Account billing and plan limits are not inferred from token counts.
+
+`usage.json` under the plugin data directory stores metadata only. Every model attempt is saved before execution and finalized after success, failure, or cancellation. Failed calls can still contribute reported tokens. Abandoned running entries become interrupted after restart; missing time and token data stay unknown. Only calls through Overseer's Luna helper are counted. Tracking starts on the first run of this version; earlier calls cannot be recovered. Retention keeps the latest 300 completed call details and lifetime daily aggregates. The UI shows the latest 30 call details and 30 active days in the selected period.
+
+Token fields follow the [Codex JSON event format](https://learn.chatgpt.com/docs/non-interactive-mode#make-output-machine-readable). Activity payload bytes measure the JSON supplied by Overseer, and CLI output bytes measure stdout, not total network traffic. Call time includes local helper startup and model execution. Failed token parsing does not turn unknown usage into zero usage.
+
 ## Checks
 
 ```sh

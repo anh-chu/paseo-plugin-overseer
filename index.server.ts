@@ -6,11 +6,15 @@ import { connectBridgeDaemon } from "./server/connection";
 import { Store } from "./server/store";
 import { Luna } from "./server/model";
 import { Observer } from "./server/observer";
+import { UsageLedger } from "./server/usage";
+import { usageRpc } from "./shared/usage";
 
 export default function contribute(server: PluginServerContext) {
   const settings = server.registerSettings(preferences);
   const home = process.env.PASEO_HOME?.trim() || join(homedir(), ".paseo");
   const directory = join(home, "plugin-data", "overseer");
+  const usage = new UsageLedger(directory);
+  let usageReady = false;
   let observer: Observer | null = null;
   let connection: Awaited<ReturnType<typeof connectBridgeDaemon>> | null = null;
   let stopped = false;
@@ -18,9 +22,10 @@ export default function contribute(server: PluginServerContext) {
   const ready = (async () => {
     const current = await settings.read();
     if (current.status !== "ready") throw new Error("Overseer settings are invalid");
+    await usage.load(); usageReady = true;
     connection = await connectBridgeDaemon();
     if (stopped) { await connection.close(); return; }
-    observer = new Observer(connection.paseo, new Store(directory), new Luna(join(directory, "helper")), current.values, home);
+    observer = new Observer(connection.paseo, new Store(directory), new Luna(join(directory, "helper"), usage), current.values, home);
     await observer.start();
     console.info("Overseer is watching selected projects with gpt-6-luna via Codex");
   })().catch(failure => { error = failure instanceof Error ? failure.message : "Overseer could not start"; console.error(error); });
@@ -33,6 +38,11 @@ export default function contribute(server: PluginServerContext) {
     return { sessions: Object.values(observer?.store.state.sessions ?? {}).map(({ pending, recent, anchors, fingerprints, ...session }) => ({ ...session, pendingCount: pending.length, workspaceNameLocked: observer!.workspaceNameLocked(session.workspaceId, session.workspaceTitle) })), enabled: observer?.settings.enabled ?? false,
       autoName: observer?.settings.autoName ?? false, autoNameWorkspaces: observer?.settings.autoNameWorkspaces ?? false, busy: observer?.busy ?? null,
       error: error ?? observer?.error ?? null, dismissed: observer?.store.state.dismissed ?? [] };
+  });
+  server.handle(usageRpc, async ({period}) => {
+    await ready;
+    if (!usageReady) throw new Error(error ?? "Usage is unavailable");
+    return usage.report(period);
   });
   server.handle(actionRpc, async input => {
     await ready;
@@ -49,5 +59,9 @@ export default function contribute(server: PluginServerContext) {
     }
     return { ok: true };
   });
-  return async () => { stopped = true; offSettings(); await ready; await observer?.stop(); await connection?.close(); };
+  return async () => {
+    stopped = true; offSettings(); await ready;
+    try { await observer?.stop(); await usage.flush(); }
+    finally { await connection?.close(); }
+  };
 }
