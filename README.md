@@ -2,11 +2,13 @@
 
 Follow project sessions as they grow. Review conflicting ownership, scope drift, and departures from explicit user instructions with a model from an enabled Paseo provider, including Claude, Codex, OpenCode, Copilot, and custom providers.
 
+![Overseer project brief](assets/brief.png)
+
 ## Install
 
 Requires Paseo 0.15.1 or later, Node.js 22 or later, and an enabled, authenticated provider on the daemon host. Choose the review provider and model in Overseer settings. The default remains `codex/gpt-6-luna`; existing Codex selections are retained. Other providers use their Paseo configuration and credentials, without a separate Codex dependency.
 
-After publication:
+Install from npm:
 
 ```sh
 paseo plugin install npm:paseo-plugin-overseer

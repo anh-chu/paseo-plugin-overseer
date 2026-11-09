@@ -13,7 +13,7 @@ const result = analysisSchema.parse({purpose: "Fix report counts", scope: ["Repo
 async function fixture(analyze = vi.fn().mockResolvedValue(result)) {
   const directory = await mkdtemp("/tmp/overseer-engine-");
   const store = new Store(directory); await store.load();
-  const session = sessionSchema.parse({id: "one", workspaceId: "workspace", projectId: "project", projectName: "Katalon", workspaceTitle: "Reports", title: "Report counts", status: "running", epoch: "old", cursor: 5});
+  const session = sessionSchema.parse({id: "one", workspaceId: "workspace", projectId: "project", projectName: "Sample Store", workspaceTitle: "Reports", title: "Report counts", status: "running", epoch: "old", cursor: 5});
   store.state.sessions.one = session;
   const refetch = vi.fn();
   const api = {agents: {ref: () => ({timeline: {refetch}})}} as unknown as PaseoApi;
@@ -102,7 +102,7 @@ async function workspaceFixture() {
   context.session.analysis = result;
   context.session.workspaceTitle = "main";
   let title = "main";
-  const descriptor = (): PaseoWorkspace => ({id: "workspace", title, name: "main", projectId: "project", projectDisplayName: "Katalon"} as PaseoWorkspace);
+  const descriptor = (): PaseoWorkspace => ({id: "workspace", title, name: "main", projectId: "project", projectDisplayName: "Sample Store"} as PaseoWorkspace);
   const setTitle = vi.fn(async (next: string) => { title = next; context.observer.observeWorkspace(descriptor()); return {title}; });
   Object.assign(context.api, {workspaces: {ref: () => ({refresh: vi.fn(async () => descriptor()), setTitle})}});
   return {...context, setTitle, externalRename: (next: string) => {title = next; context.observer.observeWorkspace(descriptor());}};

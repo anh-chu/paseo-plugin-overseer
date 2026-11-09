@@ -7,7 +7,7 @@ for (const file of ['LICENSE', 'README.md', 'OVERVIEW.md', 'paseo-plugin.json', 
 }
 for (const file of paths) {
   if (/node_modules|\.test\.|smoke\.ts$|(^|\/)(state|usage)\.json$|\.env|\.log$|\.tgz$/.test(file)) throw new Error(`Private or development file included: ${file}`);
-  if (/\.(ts|tsx|md|json)$/.test(file) && /\/home\/sil|Katalon/.test(readFileSync(file, 'utf8'))) throw new Error(`Personal content in package: ${file}`);
+  if (/\.(ts|tsx|md|json)$/.test(file) && /\/(?:home|Users)\/(?!example\/|user\/)[^/\s]+/.test(readFileSync(file, 'utf8'))) throw new Error(`Personal content in package: ${file}`);
 }
 const manifest = JSON.parse(readFileSync('paseo-plugin.json', 'utf8'));
 for (const media of manifest.media ?? []) {
