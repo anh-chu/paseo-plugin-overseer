@@ -1,4 +1,6 @@
-Overseer follows sessions in the same Paseo project and flags conflicting ownership, scope changes, and departures from explicit user instructions. Its Brief view groups work by workspace, shows each session's purpose and next action, and brings unresolved decision requests forward. Open it from the sidebar or a workspace panel.
+Overseer helps you keep track of several AI sessions working on one project. See what each session is doing, what it should do next, and which decisions need your input, without rereading every chat. It flags signs of duplicate work or changes that stray from your instructions, with quotes from the sessions so you can check the concern.
+
+It also replaces vague tab and workspace names with names that describe their work. Open the shared project brief from the sidebar or a workspace panel.
 
 The plugin listens to session activity as it grows. It saves its read position and pending activity together, recovers after reconnecting, and sends new activity to your selected model in bounded batches. The project brief uses those saved reviews without extra model calls. Routine inbox sessions stay behind a link while their actionable concerns remain visible.
 

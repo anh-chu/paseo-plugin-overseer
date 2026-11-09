@@ -1,12 +1,13 @@
 {
   "id": "overseer",
   "name": "Overseer",
-  "description": "Follow project sessions, spot conflicting work and scope drift, and keep names understandable.",
+  "description": "See who is doing what across AI sessions, spot duplicate work and off-task changes, and automatically name tabs and workspaces.",
   "media": [
     "assets/brief.png",
     "assets/mobile.png"
   ],
   "requirements": {
     "paseo": ">=0.15.1"
-  }
+  },
+  "icon": "assets/icon.png"
 }

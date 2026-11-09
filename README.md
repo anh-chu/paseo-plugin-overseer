@@ -1,6 +1,10 @@
 # Paseo Overseer
 
-Follow project sessions as they grow. Review conflicting ownership, scope drift, and departures from explicit user instructions with a model from an enabled Paseo provider, including Claude, Codex, OpenCode, Copilot, and custom providers.
+<img src="assets/icon.png" width="64" height="64" alt="Overseer icon" />
+
+When several AI sessions share a project, it is easy to lose track of who owns what. Overseer gives you one view of each session's task and next step. It flags signs that two sessions are taking the same work or that a session is moving beyond your instructions.
+
+It also gives vague tabs and workspaces useful names, so you can tell them apart without opening every chat. Reviews update as sessions grow, using a model you choose from your enabled Paseo providers.
 
 ![Overseer project brief](assets/brief.png)
 

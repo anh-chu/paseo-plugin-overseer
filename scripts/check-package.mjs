@@ -10,6 +10,11 @@ for (const file of paths) {
   if (/\.(ts|tsx|md|json)$/.test(file) && /\/(?:home|Users)\/(?!example\/|user\/)[^/\s]+/.test(readFileSync(file, 'utf8'))) throw new Error(`Personal content in package: ${file}`);
 }
 const manifest = JSON.parse(readFileSync('paseo-plugin.json', 'utf8'));
+if (manifest.icon) {
+  if (!manifest.icon.endsWith('.png') || !paths.includes(manifest.icon)) throw new Error('Icon must be a packaged PNG');
+  const icon = readFileSync(manifest.icon);
+  if (icon.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a') throw new Error('Invalid PNG icon');
+}
 for (const media of manifest.media ?? []) {
   const file = typeof media === 'string' ? media : media.path;
   if (file && !paths.includes(file.replace(/^\.\//, ''))) throw new Error(`Missing media: ${file}`);

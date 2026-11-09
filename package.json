@@ -1,6 +1,6 @@
 {
   "name": "paseo-plugin-overseer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "files": [
     "paseo-plugin.json",
     "OVERVIEW.md",
@@ -40,7 +40,7 @@
     "vitest": "^5.1.0",
     "zod": "^4.4.3"
   },
-  "description": "Incremental project session reviews, readable names, and visible model usage for Paseo.",
+  "description": "See who is doing what across AI sessions, spot duplicate work and off-task changes, and automatically name tabs and workspaces.",
   "license": "MIT",
   "author": "anh-chu",
   "repository": {
