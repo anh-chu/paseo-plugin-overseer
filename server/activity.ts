@@ -11,9 +11,13 @@ export function activity(seq: number, item: {type: string; text?: unknown}): Act
   return { seq, role, text: content.length > 6000 ? content.slice(0, 6000) + "\n[Activity excerpt; remainder omitted]" : content, fingerprint };
 }
 
-export function ingest(session: Session, entries: {seqStart: number; seqEnd: number; item: {type: string; text?: unknown}}[]) {
+export function ingest(session: Session, entries: {seqStart: number; seqEnd: number; timestamp?: string; item: {type: string; text?: unknown}}[]) {
   for (const entry of entries) {
     const next = activity(entry.seqStart, entry.item);
+    if (next && entry.timestamp && Number.isFinite(Date.parse(entry.timestamp))) {
+      const timestamp = new Date(entry.timestamp).toISOString();
+      if (!session.lastActivityAt || timestamp > session.lastActivityAt) session.lastActivityAt = timestamp;
+    }
     session.cursor = Math.max(session.cursor, entry.seqEnd);
     if (!next || session.fingerprints[String(next.seq)] === next.fingerprint) continue;
     session.fingerprints[String(next.seq)] = next.fingerprint;
@@ -42,7 +46,13 @@ export function batch(pending: Activity[], budget = 18000) {
 
 export function checkedAnalysis(result: Analysis, session: Session, peers: Session[], inputs: Activity[]): Analysis {
   const evidence = new Map([[session.id, [...session.anchors, ...session.recent, ...inputs]], ...peers.map(peer => [peer.id, [...peer.anchors, ...peer.recent]] as const)]);
-  return { ...result, findings: result.findings.filter(finding => {
+  const previousRequests = session.analysis?.needsDecision ?? [];
+  return { ...result, needsDecision: result.needsDecision.filter(request => {
+    const ref = request.evidence;
+    if (ref.sessionId !== session.id || ref.quote.trim().length < 12) return false;
+    return evidence.get(session.id)?.some(row => row.seq === ref.seq && row.role === "assistant_message" && row.text.includes(ref.quote)) ||
+      previousRequests.some(previous => previous.evidence.seq === ref.seq && previous.evidence.quote === ref.quote);
+  }), findings: result.findings.filter(finding => {
     if (finding.otherSessionId && !peers.some(peer => peer.id === finding.otherSessionId)) return false;
     if (finding.kind === "conflict" && !finding.otherSessionId) return false;
     if (!finding.evidence.some(ref => ref.sessionId === session.id)) return false;

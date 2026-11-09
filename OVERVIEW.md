@@ -1,5 +1,9 @@
 Overseer follows sessions in the same project and checks for conflicting work, scope changes, and departures from explicit user instructions. It keeps a short account of each session's purpose, scope, decisions, and next action. Open Overseer in the sidebar or in a workspace panel.
 
+The Brief is the default view. It groups work by workspace, lists the sessions responsible for each outcome, shows next actions and recent reviewed changes, and brings explicit unanswered decision requests to the top. Routine inbox sessions stay behind a link; their decision requests and concerns remain visible. The brief uses saved session summaries without extra model calls. Change and decision fields fill as sessions are reviewed. Older sessions without those fields are not given invented updates.
+
+Watch sessions, Name tabs, and Name workspaces switches are visible above the brief. They use the same saved settings as the plugin settings screen and apply to all watched projects. Pausing observation leaves working agents running and shows last known work.
+
 The plugin listens to live timeline events. It saves its read position and pending activity together, recovers missed activity after reconnecting, and uses gpt-6-luna through the local Codex CLI to review new activity in batches. It uses the daemon's existing Codex login. It does not create visible helper tabs.
 
 Settings select projects by name. Katalon is selected by default. Existing long sessions start with their beginning and recent activity; omitted earlier history is marked incomplete. New activity is followed from the saved position. Large individual messages and tool outputs are excerpted. Reasoning and plugin timeline rows are excluded.

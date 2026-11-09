@@ -6,17 +6,20 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { actionRpc, findingKey, preferences, statusRpc, type SessionView } from "../shared/contracts";
 import { UsagePanel } from "./usage";
+import { AutomationControls } from "./automation";
+import { ProjectBrief } from "./brief";
 
 export function OverseerScreen({ theme, layout, navigation, host, params }: PluginScreenProps) {
   const status = useRpc(statusRpc), act = useRpc(actionRpc);
   const query = useQuery({ queryKey: ["overseer", host.id], queryFn: () => status({}), refetchInterval: 4000 });
   const mutation = useMutation({ mutationFn: act, onSuccess: () => query.refetch() });
   const [selected, setSelected] = useState<string | null>(params.sessionId ?? null);
-  useEffect(() => { if (params.sessionId) setSelected(params.sessionId); }, [params.sessionId]);
   const [showEvidence, setShowEvidence] = useState<string | null>(null);
   const [onlyConcerns, setOnlyConcerns] = useState(false);
   const [expanded, setExpanded] = useState<string[]>([]);
-  const [view, setView] = useState<"sessions" | "usage">(params.view === "usage" ? "usage" : "sessions");
+  const [inboxProject, setInboxProject] = useState<string | null>(null);
+  const [view, setView] = useState<"brief" | "sessions" | "usage">(params.view === "usage" ? "usage" : params.sessionId ? "sessions" : "brief");
+  useEffect(() => { if (params.sessionId) {setSelected(params.sessionId); setView("sessions");} }, [params.sessionId]);
   useEffect(() => { if (params.view === "usage") setView("usage"); }, [params.view]);
   const colors = theme.colors;
   const text = { color: colors.foreground, fontSize: 15 };
@@ -25,7 +28,7 @@ export function OverseerScreen({ theme, layout, navigation, host, params }: Plug
   const visibleFindings = (session: SessionView) => (session.analysis?.findings ?? []).filter(finding => !query.data?.dismissed.includes(findingKey(session.id, finding)));
   const concerns = sessions.reduce((count, session) => count + visibleFindings(session).length, 0);
   const current = sessions.find(session => session.id === selected);
-  const groups = Object.entries(sessions.filter(session => !onlyConcerns || visibleFindings(session).length).reduce<Record<string, SessionView[]>>((result, session) => {
+  const groups = Object.entries(sessions.filter(session => (!onlyConcerns || visibleFindings(session).length) && (!inboxProject || session.kind === "inbox" && session.projectId === inboxProject)).reduce<Record<string, SessionView[]>>((result, session) => {
     (result[session.workspaceId] ??= []).push(session); return result;
   }, {})).sort(([,a], [,b]) => Number(b.some(session => session.status === "running")) - Number(a.some(session => session.status === "running")));
   const button = (label: string, onPress: () => void, strong = false) => <Pressable key={label} accessibilityRole="button" accessibilityLabel={label} disabled={mutation.isPending}
@@ -38,19 +41,27 @@ export function OverseerScreen({ theme, layout, navigation, host, params }: Plug
       <Text style={{ ...text, fontSize: layout.compact ? 28 : 36, fontWeight: "700", letterSpacing: -1 }}>Overseer</Text>
       <Text style={muted}>{query.data?.enabled ? `${sessions.filter(session => session.status !== "not watched").length} sessions watched` : "Paused"}{query.data?.busy ? " · Reviewing activity" : ""}</Text>
     </View>
+    <AutomationControls theme={theme} onSaved={() => { void query.refetch(); }} />
     <View style={{flexDirection: "row", gap: 8}}>
+      {button("Brief", () => setView("brief"), view === "brief")}
       {button("Sessions", () => setView("sessions"), view === "sessions")}
       {button("Usage", () => setView("usage"), view === "usage")}
     </View>
-    {view === "usage" ? <UsagePanel theme={theme} host={host} layout={layout} navigation={navigation} /> : <>
+    {view === "usage" ? <UsagePanel theme={theme} host={host} layout={layout} navigation={navigation} /> : view === "brief" ? <>
+      {(query.error || query.data?.error) && <Text accessibilityRole="alert" style={text}>{query.error?.message ?? query.data?.error}</Text>}
+      {query.isPending ? <ActivityIndicator color={colors.foreground} /> : <ProjectBrief theme={theme} sessions={sessions} dismissed={query.data?.dismissed ?? []} enabled={query.data?.enabled ?? false}
+        onSession={id => {setSelected(id); setView("sessions"); setInboxProject(null);}}
+        onInbox={projectId => {setSelected(null); setView("sessions"); setInboxProject(projectId); setOnlyConcerns(false);}} />}
+    </> : <>
     {(query.error || query.data?.error || mutation.error) && <Text accessibilityRole="alert" style={text}>{(mutation.error ?? query.error)?.message ?? query.data?.error}</Text>}
     {query.isPending && <ActivityIndicator color={colors.foreground} />}
     {!query.isPending && !sessions.length && <View style={{ gap: 12 }}><Text style={text}>No sessions in the selected projects.</Text><Text style={muted}>Choose projects in Settings → Plugins → Overseer.</Text></View>}
     {sessions.length > 0 && !current && <>
       <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
-        {button("All sessions", () => setOnlyConcerns(false), !onlyConcerns)}
-        {button(`${concerns} concerns`, () => setOnlyConcerns(true), onlyConcerns)}
+        {button("All sessions", () => {setOnlyConcerns(false); setInboxProject(null);}, !onlyConcerns && !inboxProject)}
+        {button(`${concerns} concerns`, () => {setOnlyConcerns(true); setInboxProject(null);}, onlyConcerns)}
       </View>
+      {inboxProject && <Text style={{...text, fontSize: 20, fontWeight: "700"}}>Inbox · {sessions.find(session => session.projectId === inboxProject)?.projectName}</Text>}
       {groups.map(([workspaceId, entries]) => <View key={workspaceId} style={{gap: 4}}>
         <Text style={{...text, fontWeight: "700", fontSize: 20, marginTop: 8}}>{entries[0].workspaceTitle}</Text>
         {(expanded.includes(workspaceId) || onlyConcerns ? entries : entries.slice(0, 3)).map(session => <Pressable key={session.id}
@@ -98,6 +109,7 @@ export function OverseerScreen({ theme, layout, navigation, host, params }: Plug
         </View>;
       })}
       {current.analysis && <>
+        {current.analysis.needsDecision.length > 0 && <View style={{gap: 14}}><Text style={{...text, fontSize: 18, fontWeight: "700"}}>Needs your decision</Text>{current.analysis.needsDecision.map((request, index) => <View key={index} style={{gap: 8}}><Text style={text}>{request.question}</Text><Text selectable style={muted}>{request.evidence.quote}</Text></View>)}</View>}
         <View style={{ gap: 10 }}><Text style={{ ...text, fontSize: 18, fontWeight: "700" }}>Agreed scope</Text>{current.analysis.scope.map((scope, index) => <Text key={index} style={text}>{scope}</Text>)}</View>
         {current.analysis.decisions.length > 0 && <View style={{ gap: 10 }}><Text style={{ ...text, fontSize: 18, fontWeight: "700" }}>Decisions</Text>{current.analysis.decisions.map((decision, index) => <Text key={index} style={text}>{decision}</Text>)}</View>}
         {current.analysis.nextAction && <View style={{ gap: 10 }}><Text style={{ ...text, fontSize: 18, fontWeight: "700" }}>Next action</Text><Text style={text}>{current.analysis.nextAction}</Text></View>}

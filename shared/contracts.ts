@@ -19,6 +19,7 @@ export const findingSchema = z.object({
   otherSessionId: z.string().nullable(),
   evidence: z.array(evidenceSchema).min(1).max(4),
 });
+export const decisionSchema = z.object({question: z.string().min(1).max(300), evidence: evidenceSchema});
 export const analysisSchema = z.object({
   purpose: z.string().min(1).max(500),
   scope: z.array(z.string().max(240)).max(10),
@@ -28,6 +29,8 @@ export const analysisSchema = z.object({
   suggestedName: z.string().min(5).max(72),
   workspaceName: z.string().min(5).max(72),
   findings: z.array(findingSchema).max(5),
+  recentChange: z.string().max(350).default(""),
+  needsDecision: z.array(decisionSchema).max(5).default([]),
 });
 export type Analysis = z.infer<typeof analysisSchema>;
 export const activitySchema = z.object({
@@ -38,6 +41,8 @@ export type Activity = z.infer<typeof activitySchema>;
 export const sessionSchema = z.object({
   id: z.string(), workspaceId: z.string(), projectId: z.string(),
   projectName: z.string(), workspaceTitle: z.string(), title: z.string(), status: z.string(),
+  kind: z.enum(["work", "inbox"]).default("work"),
+  lastActivityAt: z.string().nullable().default(null),
   epoch: z.string().nullable().default(null), cursor: z.number().int().nonnegative().default(0),
   coverage: z.enum(["initial", "following", "partial", "recovering"]).default("initial"),
   historyIncomplete: z.boolean().default(false),

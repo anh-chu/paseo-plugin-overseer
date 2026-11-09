@@ -15,6 +15,12 @@ Open **Overseer** in the sidebar or a workspace panel. Select project names in t
 
 ## Observation
 
+The default Brief view groups current work by workspace and session ownership. It includes next actions, latest concrete reviewed changes, explicit unresolved user decision requests, review backlog/failures, and historical coverage. A project selector appears when multiple projects are watched. Inbox sessions are kept behind a project-specific link, while actionable inbox requests remain visible. Unwatched sessions are omitted from current ownership; pausing observation shows last known work.
+
+Inline Watch sessions, Name tabs, and Name workspaces switches share the existing settings document and revision checks. Their scope is all watched projects, stated above the controls. Pausing observation does not pause working agents.
+
+The brief is assembled from saved session analyses; it does not make project-level model calls. Existing session reviews also extract a concrete recent change and explicit unanswered assistant requests for the user's decision. Requests require matching assistant source quotes and are removed when answered. Activity timestamps come from the source timeline rather than the observer's review time. Older analyses default to empty change/request fields and fill on subsequent activity.
+
 The daemon plugin owns agent and workspace list subscriptions, then subscribes to each selected session's live timeline. Events schedule bounded canonical history reads from a saved cursor. Reconnects recover from that cursor; timeline replacements invalidate old sequence positions and in-flight analysis. A long existing session starts with its opening and recent activity and remains marked as having incomplete history.
 
 The store writes the cursor, pending activity, and summaries atomically. Matching fingerprints deduplicate replays and handle growing rows at the same sequence position. User requests remain in a separate bounded record alongside the model's summary. A failed analysis retains pending work for retry. One Codex process runs at a time, with fair scheduling between sessions.

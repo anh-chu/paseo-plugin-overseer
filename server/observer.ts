@@ -5,6 +5,7 @@ import { batch, checkedAnalysis, genericName, ingest } from "./activity";
 import { Luna, executable, run } from "./model";
 import { Store } from "./store";
 import { createHash } from "node:crypto";
+import { sessionKind } from "../shared/brief";
 
 export class Observer {
   readonly lifetime = new AbortController();
@@ -154,6 +155,7 @@ export class Observer {
       title: agent.title ?? "Untitled session", status: agent.status,
     });
     session.status = agent.status;
+    session.kind = sessionKind(agent.title, agent.labels);
     session.workspaceId = workspace.id;
     session.projectId = workspace.projectId;
     session.workspaceTitle = workspace.title ?? workspace.name;
@@ -216,7 +218,7 @@ export class Observer {
       page = await timeline.refetch({ direction: "tail", limit: 50, projection: "canonical" });
       if (page.error) throw new Error("Cannot establish session history");
       const reset = session.epoch !== null;
-      if (reset) { session.pending = []; session.recent = []; session.anchors = []; session.fingerprints = {}; session.cursor = 0; }
+      if (reset) { session.pending = []; session.recent = []; session.anchors = []; session.fingerprints = {}; session.cursor = 0; session.lastActivityAt = null; }
       session.epoch = page.epoch;
       session.coverage = page.hasOlder || page.gap || reset ? "partial" : "following";
       session.historyIncomplete = session.coverage === "partial";

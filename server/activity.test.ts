@@ -32,6 +32,25 @@ describe("incremental activity", () => {
 });
 
 describe("evidence and names", () => {
+  it("rejects invented decision requests and preserves a previously evidenced open request", () => {
+    const own = session();
+    const row = activity(5, {type: "assistant_message", text: "Should the report export use CSV or JSON?"})!;
+    const request = {question: "CSV or JSON for the report export?", evidence: {sessionId: own.id, seq: 5, quote: row.text}};
+    const reviewed = checkedAnalysis({...analysis, needsDecision: [request]}, own, [], [row]);
+    expect(reviewed.needsDecision).toHaveLength(1);
+    expect(checkedAnalysis({...analysis, needsDecision: [{...request, evidence: {...request.evidence, quote: "Invented approval request"}}]}, own, [], [row]).needsDecision).toHaveLength(0);
+    expect(checkedAnalysis({...analysis, needsDecision: [request]}, own, [], [{...row, role: "user_message"}]).needsDecision).toHaveLength(0);
+    own.analysis = reviewed;
+    expect(checkedAnalysis({...analysis, needsDecision: [request]}, own, [], []).needsDecision).toHaveLength(1);
+    expect(checkedAnalysis({...analysis, needsDecision: []}, own, [], []).needsDecision).toHaveLength(0);
+  });
+  it("keeps source activity time separate from observer review time", () => {
+    const own = session();
+    ingest(own, [{seqStart: 1, seqEnd: 1, timestamp: "2026-11-09T11:00:00+07:00", item: {type: "user_message", text: "Check report counts"}}]);
+    expect(own.lastActivityAt).toBe("2026-11-09T04:00:00.000Z");
+    ingest(own, [{seqStart: 1, seqEnd: 1, timestamp: "2026-11-08T04:00:00Z", item: {type: "user_message", text: "Check report counts"}}]);
+    expect(own.lastActivityAt).toBe("2026-11-09T04:00:00.000Z");
+  });
   it("rejects invented quotations and unknown peers", () => {
     const own = session(), peer = session("two");
     const row = activity(1, {type: "user_message", text: "Only work on report counts"})!;
