@@ -32,24 +32,23 @@ export function OverseerScreen({ theme, layout, navigation, host, params }: Plug
     (result[session.workspaceId] ??= []).push(session); return result;
   }, {})).sort(([,a], [,b]) => Number(b.some(session => session.status === "running")) - Number(a.some(session => session.status === "running")));
   const button = (label: string, onPress: () => void, strong = false) => <Pressable key={label} accessibilityRole="button" accessibilityLabel={label} disabled={mutation.isPending}
-    onPress={onPress} style={{ paddingHorizontal: 14, paddingVertical: 11, borderRadius: 8, backgroundColor: strong ? colors.foreground : colors.surface2, opacity: mutation.isPending ? 0.5 : 1 }}>
+    onPress={onPress} style={{ paddingHorizontal: 11, paddingVertical: 7, borderRadius: 6, backgroundColor: strong ? colors.foreground : colors.surface2, opacity: mutation.isPending ? 0.5 : 1 }}>
     <Text style={{ ...text, fontSize: 13, fontWeight: "600", color: strong ? colors.surface0 : colors.foreground }}>{label}</Text>
   </Pressable>;
   const action = (session: SessionView, kind: "review" | "rename" | "renameWorkspace" | "lock" | "lockWorkspace") => mutation.mutate({ sessionId: session.id, action: kind });
-  return <ScrollView style={{ flex: 1, backgroundColor: colors.surface0 }} contentContainerStyle={{ padding: layout.compact ? 16 : 32, gap: 24, maxWidth: 1120, width: "100%", alignSelf: "center" }}>
+  return <ScrollView style={{ flex: 1, backgroundColor: colors.surface0 }} contentContainerStyle={{ padding: layout.compact ? 12 : 20, gap: 14, maxWidth: 1200, width: "100%", alignSelf: "center" }}>
     <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-      <Text style={{ ...text, fontSize: layout.compact ? 28 : 36, fontWeight: "700", letterSpacing: -1 }}>Overseer</Text>
-      <Text style={muted}>{query.data?.enabled ? `${sessions.filter(session => session.status !== "not watched").length} sessions watched` : "Paused"}{query.data?.busy ? " · Reviewing activity" : ""}</Text>
-    </View>
-    <AutomationControls theme={theme} onSaved={() => { void query.refetch(); }} />
-    <View style={{flexDirection: "row", gap: 8}}>
+    <View style={{flexDirection: "row", gap: 6}}>
       {button("Brief", () => setView("brief"), view === "brief")}
       {button("Sessions", () => setView("sessions"), view === "sessions")}
       {button("Usage", () => setView("usage"), view === "usage")}
     </View>
+      <Text style={{...muted, fontSize: 12}}>{query.data?.enabled ? `${sessions.filter(session => session.status !== "not watched").length} watched` : "Paused"}{query.data?.busy ? " · Reviewing" : ""}</Text>
+    </View>
+    <AutomationControls theme={theme} onSaved={() => { void query.refetch(); }} />
     {view === "usage" ? <UsagePanel theme={theme} host={host} layout={layout} navigation={navigation} /> : view === "brief" ? <>
       {(query.error || query.data?.error) && <Text accessibilityRole="alert" style={text}>{query.error?.message ?? query.data?.error}</Text>}
-      {query.isPending ? <ActivityIndicator color={colors.foreground} /> : <ProjectBrief theme={theme} sessions={sessions} dismissed={query.data?.dismissed ?? []} enabled={query.data?.enabled ?? false}
+      {query.isPending ? <ActivityIndicator color={colors.foreground} /> : <ProjectBrief theme={theme} layout={layout} sessions={sessions} dismissed={query.data?.dismissed ?? []} enabled={query.data?.enabled ?? false}
         onSession={id => {setSelected(id); setView("sessions"); setInboxProject(null);}}
         onInbox={projectId => {setSelected(null); setView("sessions"); setInboxProject(projectId); setOnlyConcerns(false);}} />}
     </> : <>

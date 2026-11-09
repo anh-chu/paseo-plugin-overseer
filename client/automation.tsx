@@ -1,20 +1,25 @@
 import type { PluginSurfaceProps } from "@getpaseo/plugin/client";
 import { useSettings } from "@getpaseo/plugin/client";
-import { Switch, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { preferences, type Settings } from "../shared/contracts";
 
 export function AutomationControls({theme, onSaved}: Pick<PluginSurfaceProps, "theme"> & {onSaved(): void}) {
   const settings = useSettings(preferences);
   if (settings.status !== "ready") return <Text style={{color: theme.colors.foregroundMuted}}>Automation controls unavailable</Text>;
-  const toggle = (key: "enabled" | "autoName" | "autoNameWorkspaces", label: string) => <View key={key} style={{flex: 1, minWidth: 200, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 16, paddingVertical: 12}}>
-    <Text style={{color: theme.colors.foreground, fontSize: 15, fontWeight: "600"}}>{label}</Text>
-    <Switch accessibilityLabel={label} disabled={settings.saving} value={settings.values[key]} onValueChange={value => {
-      void settings.save({...settings.values, [key]: value} as Settings, settings.revision).then(onSaved).catch(() => {});
-    }} trackColor={{false: theme.colors.surface2, true: theme.colors.foreground}} thumbColor={theme.colors.surface0} ios_backgroundColor={theme.colors.surface2} />
-  </View>;
-  return <View style={{gap: 8, paddingVertical: 12, borderTopWidth: 1, borderBottomWidth: 1, borderColor: theme.colors.border}}>
-    <Text style={{color: theme.colors.foregroundMuted, fontSize: 13}}>Automation for all watched projects</Text>
-    <View style={{flexDirection: "row", flexWrap: "wrap", columnGap: 32}}>{toggle("enabled", "Watch sessions")}{toggle("autoName", "Name tabs")}{toggle("autoNameWorkspaces", "Name workspaces")}</View>
+  const toggle = (key: "enabled" | "autoName" | "autoNameWorkspaces", label: string, accessibleLabel: string) => <Pressable key={key}
+    accessibilityRole="switch" accessibilityLabel={accessibleLabel} accessibilityHint="Applies to all watched projects" accessibilityState={{checked: settings.values[key], disabled: settings.saving}}
+    aria-checked={settings.values[key]} aria-disabled={settings.saving}
+    disabled={settings.saving} onPress={() => {
+      void settings.save({...settings.values, [key]: !settings.values[key]} as Settings, settings.revision).then(onSaved).catch(() => {});
+    }} style={{flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 6, backgroundColor: theme.colors.surface1, opacity: settings.saving ? 0.5 : 1}}>
+    <Text style={{color: theme.colors.foreground, fontSize: 12, fontWeight: "600"}}>{label}</Text>
+    <Text style={{color: theme.colors.foregroundMuted, fontSize: 12}}>{settings.values[key] ? "On" : "Off"}</Text>
+  </Pressable>;
+  return <View style={{gap: 6}}>
+    <View style={{flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 6}}>
+      {settings.values.projectNames.length > 1 && <Text style={{color: theme.colors.foregroundMuted, fontSize: 12, marginRight: 4}}>All projects</Text>}
+      {toggle("enabled", "Watch", "Watch sessions")}{toggle("autoName", "Tab names", "Name tabs")}{toggle("autoNameWorkspaces", "Workspace names", "Name workspaces")}
+    </View>
     {settings.saveError && <Text accessibilityRole="alert" style={{color: theme.colors.foreground}}>{settings.saveError}</Text>}
   </View>;
 }
