@@ -20,6 +20,7 @@ export function readTokens(output: string): Tokens | null {
 
 export function metricsFor(call: UsageCall): UsageMetrics {
   const metrics = metricsSchema.parse({calls: 1, [call.status]: 1, inputBytes: call.inputBytes, outputBytes: call.outputBytes, activityCount: call.activityCount});
+  if (call.costUsd !== null) Object.assign(metrics, {costUsd: call.costUsd, costReportedCalls: 1});
   if (call.tokens) Object.assign(metrics, {reportedCalls: 1, inputTokens: call.tokens.inputTokens, outputTokens: call.tokens.outputTokens,
     cachedInputTokens: call.tokens.cachedInputTokens ?? 0, cachedReportedCalls: call.tokens.cachedInputTokens === null ? 0 : 1,
     reasoningTokens: call.tokens.reasoningTokens ?? 0, reasoningReportedCalls: call.tokens.reasoningTokens === null ? 0 : 1});
@@ -54,8 +55,8 @@ export class UsageLedger {
     }).catch(error => { this.error = "Usage could not be saved"; throw error; });
     this.writes = next; return next;
   }
-  async begin(input: Pick<UsageCall, "task" | "projectId" | "projectName" | "workspaceId" | "workspaceName" | "sessionTitle" | "inputBytes" | "activityCount"> & {model?: string}) {
-    const call: UsageCall = {...input, id: randomUUID(), model: input.model ?? "gpt-6-luna", startedAt: new Date().toISOString(), finishedAt: null, durationMs: null,
+  async begin(input: Pick<UsageCall, "task" | "projectId" | "projectName" | "workspaceId" | "workspaceName" | "sessionTitle" | "inputBytes" | "activityCount"> & {model?: string; provider?: string}) {
+    const call: UsageCall = {...input, id: randomUUID(), provider: input.provider ?? "codex", costUsd: null, model: input.model ?? "gpt-6-luna", startedAt: new Date().toISOString(), finishedAt: null, durationMs: null,
       status: "running", tokens: null, outputBytes: 0, error: null};
     this.state.recent.push(call);
     // Aggregate history stays intact; retain at most 300 completed call details plus running calls.
@@ -65,7 +66,7 @@ export class UsageLedger {
     catch (error) { this.state.recent = this.state.recent.filter(row => row.id !== call.id); throw error; }
     return call.id;
   }
-  async finish(id: string, result: Pick<UsageCall, "status" | "tokens" | "outputBytes" | "error" | "durationMs">) {
+  async finish(id: string, result: Pick<UsageCall, "status" | "tokens" | "outputBytes" | "error" | "durationMs"> & {costUsd?: number | null}) {
     const call = this.state.recent.find(row => row.id === id);
     if (!call || call.status !== "running") return;
     Object.assign(call, result, {finishedAt: new Date().toISOString()});
@@ -76,25 +77,27 @@ export class UsageLedger {
   }
   private aggregate(call: UsageCall) {
     const day = call.startedAt.slice(0, 10);
-    let bucket = this.state.buckets.find(row => row.day === day && row.task === call.task && row.projectId === call.projectId);
-    if (!bucket) { bucket = {day, task: call.task, projectId: call.projectId, projectName: call.projectName, metrics: metricsSchema.parse({})}; this.state.buckets.push(bucket); }
+    let bucket = this.state.buckets.find(row => row.day === day && row.task === call.task && row.provider === call.provider && row.projectId === call.projectId);
+    if (!bucket) { bucket = {day, task: call.task, provider: call.provider, projectId: call.projectId, projectName: call.projectName, metrics: metricsSchema.parse({})}; this.state.buckets.push(bucket); }
     addMetrics(bucket.metrics, metricsFor(call));
   }
   report(period: "today" | "week" | "all", now = new Date()): UsageReport {
     const cutoff = period === "all" ? "" : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - (period === "week" ? 6 : 0))).toISOString().slice(0, 10);
     const totals = metricsSchema.parse({});
+    const byProvider = new Map<string, UsageMetrics>();
     const byTask = new Map<UsageCall["task"], UsageMetrics>();
     const byProject = new Map<string, {projectId: string; projectName: string; metrics: UsageMetrics}>();
     const daily = new Map<string, UsageMetrics>();
-    const rows = [...this.state.buckets.filter(row => row.day >= cutoff), ...this.state.recent.filter(call => call.status === "running" && call.startedAt.slice(0,10) >= cutoff).map(call => ({day: call.startedAt.slice(0,10), task: call.task, projectId: call.projectId, projectName: call.projectName, metrics: metricsFor(call)}))];
+    const rows = [...this.state.buckets.filter(row => row.day >= cutoff), ...this.state.recent.filter(call => call.status === "running" && call.startedAt.slice(0,10) >= cutoff).map(call => ({day: call.startedAt.slice(0,10), task: call.task, provider: call.provider, projectId: call.projectId, projectName: call.projectName, metrics: metricsFor(call)}))];
     for (const row of rows) {
       addMetrics(totals, row.metrics);
+      const provider = byProvider.get(row.provider) ?? metricsSchema.parse({}); addMetrics(provider, row.metrics); byProvider.set(row.provider, provider);
       const task = byTask.get(row.task) ?? metricsSchema.parse({}); addMetrics(task, row.metrics); byTask.set(row.task, task);
       const project = byProject.get(row.projectId) ?? {projectId: row.projectId, projectName: row.projectName, metrics: metricsSchema.parse({})};
       addMetrics(project.metrics, row.metrics); byProject.set(row.projectId, project);
       const day = daily.get(row.day) ?? metricsSchema.parse({}); addMetrics(day, row.metrics); daily.set(row.day, day);
     }
-    return {startedAt: this.state.startedAt, error: this.error, totals, byTask: [...byTask].map(([task, metrics]) => ({task, metrics})), byProject: [...byProject.values()],
+    return {startedAt: this.state.startedAt, error: this.error, totals, byProvider: [...byProvider].map(([provider, metrics]) => ({provider, metrics})), byTask: [...byTask].map(([task, metrics]) => ({task, metrics})), byProject: [...byProject.values()],
       daily: [...daily].sort(([a],[b]) => a.localeCompare(b)).slice(-30).map(([day, metrics]) => ({day, metrics})),
       recent: this.state.recent.filter(call => call.startedAt.slice(0,10) >= cutoff).slice(-30).reverse()};
   }

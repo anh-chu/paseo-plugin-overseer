@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { preferences, statusRpc, actionRpc } from "./shared/contracts";
 import { connectBridgeDaemon } from "./server/connection";
 import { Store } from "./server/store";
+import { providerExecutor } from "./server/provider";
 import { Luna } from "./server/model";
 import { Observer } from "./server/observer";
 import { UsageLedger } from "./server/usage";
@@ -25,9 +26,9 @@ export default function contribute(server: PluginServerContext) {
     await usage.load(); usageReady = true;
     connection = await connectBridgeDaemon();
     if (stopped) { await connection.close(); return; }
-    observer = new Observer(connection.paseo, new Store(directory), new Luna(join(directory, "helper"), usage), current.values, home);
+    observer = new Observer(connection.paseo, new Store(directory), new Luna(join(directory, "helper"), usage, undefined, providerExecutor(connection.paseo, join(directory, "helper"), connection.createHelper)), current.values, home);
     await observer.start();
-    console.info("Overseer is watching selected projects via Codex");
+    console.info("Overseer is watching selected projects via Paseo providers");
   })().catch(failure => { error = failure instanceof Error ? failure.message : "Overseer could not start"; console.error(error); });
   const offSettings = settings.subscribe(async current => {
     await ready;

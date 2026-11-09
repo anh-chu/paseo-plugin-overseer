@@ -13,7 +13,7 @@ export function ProjectPicker({theme, host}: Pick<PluginSurfaceProps, "theme" | 
     <Text style={{color: theme.colors.foreground, fontSize: 14, fontWeight: "600"}}>Projects to watch</Text>
     {query.isPending && <Text style={{color: theme.colors.foregroundMuted}}>Loading projects…</Text>}
     {query.error && <Text accessibilityRole="alert" style={{color: theme.colors.foreground}}>{query.error.message}</Text>}
-    {query.data?.projects.map(project => {
+    {query.data?.projects.filter(project => !/\/plugin-data\/overseer\/helper\/review-[^/]+$/.test(project.projectRootPath.replace(/\\/g, "/"))).map(project => {
       const selected = watchesProject(settings.values, project.projectId, project.projectDisplayName);
       return <Pressable key={project.projectId} accessibilityRole="checkbox" accessibilityState={{checked: selected, disabled: settings.saving}}
         disabled={settings.saving} onPress={() => {

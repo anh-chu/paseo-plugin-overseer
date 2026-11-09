@@ -37,6 +37,7 @@ export function UsagePanel({theme, host, layout}: PluginSurfaceProps) {
       </View>
       <View style={{gap: 4}}>
         <Text style={{...text, fontSize: 16, fontWeight: "700", marginBottom: 8}}>Tokens</Text>
+        {row("Reported cost (USD)", total.costReportedCalls ? `$${total.costUsd.toFixed(4)} · ${total.costReportedCalls} calls` : "Not reported")}
         {row("Input", total.reportedCalls ? number(total.inputTokens) : "Not reported")}
         {row("Cached input", total.cachedReportedCalls ? number(total.cachedInputTokens) : "Not reported")}
         {row("Output", total.reportedCalls ? number(total.outputTokens) : "Not reported")}
@@ -51,8 +52,9 @@ export function UsagePanel({theme, host, layout}: PluginSurfaceProps) {
         {row("Token reports received", `${number(total.reportedCalls)} / ${number(total.calls - total.running)}`)}
         {row("Activity updates read", number(total.activityCount))}
         {row("Activity payload", `${(total.inputBytes / 1024).toFixed(1)} KiB`)}
-        {row("CLI output", `${(total.outputBytes / 1024).toFixed(1)} KiB`)}
+        {row("Response output", `${(total.outputBytes / 1024).toFixed(1)} KiB`)}
       </View>
+      {data.byProvider.length > 0 && <View style={{gap: 8}}><Text style={{...text, fontSize: 16, fontWeight: "700"}}>By provider</Text>{data.byProvider.map(item => row(item.provider, callSummary(item.metrics)))}</View>}
       {data.byTask.length > 0 && <View style={{gap: 8}}><Text style={{...text, fontSize: 16, fontWeight: "700"}}>By purpose</Text>{data.byTask.map(item => row(taskName(item.task), callSummary(item.metrics)))}</View>}
       {data.byProject.length > 0 && <View style={{gap: 8}}><Text style={{...text, fontSize: 16, fontWeight: "700"}}>By project</Text>{data.byProject.map(item => row(item.projectName, callSummary(item.metrics)))}</View>}
       {data.daily.length > 0 && <View style={{gap: 12}}>
@@ -66,13 +68,13 @@ export function UsagePanel({theme, host, layout}: PluginSurfaceProps) {
         {data.recent.map(call => <View key={call.id} style={{paddingVertical: 14, borderBottomWidth: 1, borderColor: c.border, gap: 7}}>
           <View style={{flexDirection: "row", gap: 12, justifyContent: "space-between"}}><Text style={{...text, fontWeight: "600", flex: 1}}>{taskName(call.task)}</Text><Text style={muted}>{call.status}</Text></View>
           <Text style={text}>{call.task === "workspace_naming" ? call.workspaceName : call.sessionTitle}</Text>
-          <Text style={muted}>{call.model} · {new Date(call.startedAt).toLocaleString()} · {call.tokens ? `${number(call.tokens.inputTokens + call.tokens.outputTokens)} tokens` : "Tokens not reported"} · {call.durationMs !== null ? `${(call.durationMs / 1000).toFixed(1)} s` : call.status === "running" ? "In progress" : "Duration unknown"}</Text>
+          <Text style={muted}>{call.provider} / {call.model} · {new Date(call.startedAt).toLocaleString()} · {call.tokens ? `${number(call.tokens.inputTokens + call.tokens.outputTokens)} tokens` : "Tokens not reported"} · {call.durationMs !== null ? `${(call.durationMs / 1000).toFixed(1)} s` : call.status === "running" ? "In progress" : "Duration unknown"}</Text>
           {call.error && <Text style={muted}>{call.error}</Text>}
         </View>)}
       </View>}
       <View style={{gap: 8, paddingVertical: 12}}>
         <Text style={muted}>Recording since {new Date(data.startedAt).toLocaleString()}. Earlier calls were not recorded.</Text>
-        <Text style={muted}>Codex usage. Account charges are not returned by Codex.</Text>
+        <Text style={muted}>Usage fields vary by provider. Reported cost is provider metadata, not an account bill.</Text>
       </View>
     </>}
   </View>;

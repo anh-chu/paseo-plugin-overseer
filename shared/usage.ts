@@ -7,7 +7,7 @@ export const tokensSchema = z.object({
 });
 export type Tokens = z.infer<typeof tokensSchema>;
 export const callSchema = z.object({
-  id: z.string(), task: z.enum(["session_review", "workspace_naming"]), model: z.string().min(1),
+  id: z.string(), task: z.enum(["session_review", "workspace_naming"]), model: z.string().min(1), provider: z.string().default("codex"), costUsd: z.number().nonnegative().nullable().default(null),
   projectId: z.string(), projectName: z.string(), workspaceId: z.string(), workspaceName: z.string(), sessionTitle: z.string(),
   startedAt: z.string(), finishedAt: z.string().nullable(), durationMs: z.number().nonnegative().nullable(),
   status: z.enum(["running", "completed", "failed", "canceled", "interrupted"]),
@@ -16,6 +16,7 @@ export const callSchema = z.object({
 });
 export type UsageCall = z.infer<typeof callSchema>;
 export const metricsSchema = z.object({
+  costUsd: z.number().default(0), costReportedCalls: z.number().default(0),
   calls: z.number().default(0), completed: z.number().default(0), failed: z.number().default(0), canceled: z.number().default(0), interrupted: z.number().default(0), running: z.number().default(0),
   reportedCalls: z.number().default(0), cachedReportedCalls: z.number().default(0), reasoningReportedCalls: z.number().default(0),
   inputTokens: z.number().default(0), cachedInputTokens: z.number().default(0), outputTokens: z.number().default(0), reasoningTokens: z.number().default(0),
@@ -25,11 +26,12 @@ export const metricsSchema = z.object({
 export type UsageMetrics = z.infer<typeof metricsSchema>;
 export const usageStateSchema = z.object({
   version: z.literal(1), startedAt: z.string(), recent: z.array(callSchema),
-  buckets: z.array(z.object({day: z.string(), task: callSchema.shape.task, projectId: z.string(), projectName: z.string(), metrics: metricsSchema})),
+  buckets: z.array(z.object({day: z.string(), task: callSchema.shape.task, provider: z.string().default("codex"), projectId: z.string(), projectName: z.string(), metrics: metricsSchema})),
 });
 export type UsageState = z.infer<typeof usageStateSchema>;
 export const usageReportSchema = z.object({
   startedAt: z.string(), error: z.string().nullable(), totals: metricsSchema,
+  byProvider: z.array(z.object({provider: z.string(), metrics: metricsSchema})),
   byTask: z.array(z.object({task: callSchema.shape.task, metrics: metricsSchema})),
   byProject: z.array(z.object({projectId: z.string(), projectName: z.string(), metrics: metricsSchema})),
   daily: z.array(z.object({day: z.string(), metrics: metricsSchema})),

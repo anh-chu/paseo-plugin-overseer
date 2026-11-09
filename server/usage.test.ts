@@ -115,3 +115,28 @@ it("uses the selected model and records the same model in usage", async () => {
   await model.analyze(session, [], [], new AbortController().signal);
   expect(execute.mock.calls[1][1]).toContain("another-model");
 });
+
+it("preserves old usage files and separates provider costs without estimates", async () => {
+  const usage = await ledger();
+  await usage.finish(await usage.begin(input), finished);
+  const legacy = JSON.parse(await readFile(join(usage.directory, "usage.json"), "utf8"));
+  for (const row of legacy.recent) {delete row.provider; delete row.costUsd;}
+  for (const row of legacy.buckets) delete row.provider;
+  await writeFile(join(usage.directory, "usage.json"), JSON.stringify(legacy));
+  const restored = new UsageLedger(usage.directory); await restored.load();
+  await restored.finish(await restored.begin({...input, provider: "claude", model: "haiku"}), {...finished, costUsd: 0.003});
+  const report = restored.report("all");
+  expect(report.byProvider.map(row => row.provider)).toEqual(["codex", "claude"]);
+  expect(report.totals).toMatchObject({calls: 2, inputTokens: 2000, costUsd: 0.003, costReportedCalls: 1});
+  expect(report.recent.find(row => row.provider === "codex")!.costUsd).toBeNull();
+});
+it("retains native provider usage when structured output is invalid", async () => {
+  const usage = await ledger();
+  const execute = vi.fn().mockResolvedValue({text: "invalid JSON", tokens, costUsd: 0.002});
+  const model = new Luna(join(usage.directory, "helper"), usage, undefined, execute);
+  model.setSelection("custom/vendor/model[1m]");
+  const session = sessionSchema.parse({id: "session", projectId: "project", projectName: "Example", workspaceId: "workspace", workspaceTitle: "Reports", title: "Check report counts", status: "running"});
+  await expect(model.analyze(session, [], [], new AbortController().signal)).rejects.toThrow();
+  expect(execute.mock.calls[0][0]).toBe("custom/vendor/model[1m]");
+  expect(usage.report("all").recent[0]).toMatchObject({provider: "custom", model: "vendor/model[1m]", tokens, costUsd: 0.002, status: "failed"});
+});

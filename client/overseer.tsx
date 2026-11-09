@@ -3,9 +3,10 @@ import { useRpc, useSettings } from "@getpaseo/plugin/client";
 import { SettingsCard, SettingsSection, SettingsSwitch } from "@getpaseo/plugin/client/ui";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { actionRpc, findingKey, preferences, statusRpc, type SessionView } from "../shared/contracts";
 import { sampleSessions } from "../shared/sample";
+import { ModelPicker } from "./models";
 import { ProjectPicker } from "./projects";
 import { UsagePanel } from "./usage";
 import { AutomationControls } from "./automation";
@@ -56,7 +57,7 @@ export function OverseerScreen({ theme, layout, navigation, host, params }: Plug
     </View>
     <AutomationControls theme={theme} onSaved={() => { void query.refetch(); }} />
     </View>
-    {settings.status === "ready" && !settings.values.projectIds.length && !settings.values.projectNames.length && <ProjectPicker theme={theme} host={host} />}
+    {settings.status === "ready" && !settings.values.projectIds.length && !settings.values.projectNames.length && <View style={{gap: 16}}><ModelPicker theme={theme} host={host} /><ProjectPicker theme={theme} host={host} /></View>}
     {view === "usage" ? <UsagePanel theme={theme} host={host} layout={layout} navigation={navigation} /> : view === "brief" ? <>
       {(query.error || query.data?.error) && <Text accessibilityRole="alert" style={text}>{query.error?.message ?? query.data?.error}</Text>}
       {query.isPending ? <ActivityIndicator color={colors.foreground} /> : <ProjectBrief theme={theme} layout={layout} sessions={sessions} dismissed={query.data?.dismissed ?? []} enabled={query.data?.enabled ?? false}
@@ -144,23 +145,18 @@ export function OverseerScreen({ theme, layout, navigation, host, params }: Plug
 
 export function OverseerSettings({ theme, host }: PluginSurfaceProps) {
   const settings = useSettings(preferences);
-  const [model, setModel] = useState<string | null>(null);
   if (settings.status !== "ready") return <Text style={{ color: theme.colors.foreground }}>Loading settings…</Text>;
   return <ScrollView contentContainerStyle={{ padding: 20, gap: 24 }}>
     <SettingsSection title="Observation"><SettingsCard>
       <SettingsSwitch label="Watch sessions" disabled={settings.saving} value={settings.values.enabled} onValueChange={enabled => { void settings.save({...settings.values, enabled}, settings.revision); }} />
     </SettingsCard></SettingsSection>
     <ProjectPicker theme={theme} host={host} />
-    <View style={{gap: 8}}>
-      <Text style={{color: theme.colors.foreground, fontSize: 14, fontWeight: "600"}}>Codex model</Text>
-      <TextInput accessibilityLabel="Codex model" value={model ?? settings.values.codexModel} onChangeText={setModel} autoCapitalize="none" style={{color: theme.colors.foreground, backgroundColor: theme.colors.surface1, padding: 10, borderRadius: 6}} />
-      <Pressable accessibilityRole="button" disabled={settings.saving || model === null || !preferences.schema.shape.codexModel.safeParse(model).success} onPress={() => { void settings.save({...settings.values, codexModel: model!.trim()}, settings.revision).then(() => setModel(null)).catch(() => {}); }} style={{alignSelf: "flex-start", padding: 10, borderRadius: 6, backgroundColor: theme.colors.surface2}}><Text style={{color: theme.colors.foreground}}>Save model</Text></Pressable>
-    </View>
+    <ModelPicker theme={theme} host={host} />
     <SettingsSection title="Names"><SettingsCard>
       <SettingsSwitch label="Automatically name generic tabs" disabled={settings.saving} value={settings.values.autoName} onValueChange={autoName => { void settings.save({...settings.values, autoName}, settings.revision); }} />
       <SettingsSwitch label="Automatically name workspaces" disabled={settings.saving} value={settings.values.autoNameWorkspaces} onValueChange={autoNameWorkspaces => { void settings.save({...settings.values, autoNameWorkspaces}, settings.revision); }} />
     </SettingsCard></SettingsSection>
     {settings.saveError && <Text style={{color: theme.colors.foreground}}>{settings.saveError}</Text>}
-    <Text style={{color: theme.colors.foregroundMuted}}>Uses the daemon’s existing Codex login and the selected model. Activity is sent to Codex for analysis. Other naming plugins remain enabled; manual names are preserved.</Text>
+    <Text style={{color: theme.colors.foregroundMuted}}>Uses the selected Paseo provider and its configured credentials. Activity is sent to that provider for analysis. Other naming plugins remain enabled; manual names are preserved.</Text>
   </ScrollView>;
 }

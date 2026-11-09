@@ -7,6 +7,7 @@ export const preferences = defineSettings({
     enabled: z.boolean().default(true),
     projectNames: z.array(z.string()).default([]),
     projectIds: z.array(z.string()).default([]),
+    providerModel: z.string().trim().min(3).max(512).regex(/^[^\s/]+\/[^\s]+$/).nullable().default(null),
     codexModel: z.string().trim().regex(/^[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,99}$/).default("gpt-6-luna"),
     autoName: z.boolean().default(false),
     autoNameWorkspaces: z.boolean().default(true),

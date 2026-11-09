@@ -16,14 +16,16 @@
     "LICENSE",
     "assets/",
     "!**/*.test.ts",
-    "!server/smoke.ts"
+    "!server/smoke.ts",
+    "!server/*-smoke.ts"
   ],
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:smoke": "tsx server/smoke.ts",
     "check:package": "node scripts/check-package.mjs",
-    "prepublishOnly": "npm run typecheck && npm test && npm run check:package"
+    "prepublishOnly": "npm run typecheck && npm test && npm run check:package",
+    "test:providers": "tsx server/provider-smoke.ts"
   },
   "devDependencies": {
     "@getpaseo/client": "^0.15.1",
@@ -38,7 +40,7 @@
     "vitest": "^5.1.0",
     "zod": "^4.4.3"
   },
-  "description": "Incremental project session reviews, readable names, and visible Codex usage for Paseo.",
+  "description": "Incremental project session reviews, readable names, and visible model usage for Paseo.",
   "license": "MIT",
   "author": "Anh Chu (anh-chu)",
   "repository": {

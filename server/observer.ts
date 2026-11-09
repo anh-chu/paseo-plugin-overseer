@@ -32,7 +32,7 @@ export class Observer {
   busy: string | null = null;
   error: string | null = null;
   settings: Settings;
-  constructor(readonly paseo: PaseoApi, readonly store: Store, readonly luna: Luna, settings: Settings, readonly home: string) { this.settings = settings; this.luna.setModel(settings.codexModel); }
+  constructor(readonly paseo: PaseoApi, readonly store: Store, readonly luna: Luna, settings: Settings, readonly home: string) { this.settings = settings; this.luna.setModel(settings.codexModel); this.luna.setSelection(settings.providerModel); }
 
   start() { return this.initialized ??= this.initialize(); }
   private async initialize() {
@@ -325,7 +325,7 @@ export class Observer {
   }
 
   async updateSettings(settings: Settings) {
-    this.settings = settings; this.luna.setModel(settings.codexModel);
+    this.settings = settings; this.luna.setModel(settings.codexModel); this.luna.setSelection(settings.providerModel);
     let cursor: string | undefined;
     do {
       const page = await this.paseo.agents.list({ page: { limit: 100, ...(cursor ? {cursor} : {}) } });

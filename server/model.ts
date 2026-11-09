@@ -5,6 +5,7 @@ import { homedir } from "node:os";
 import { delimiter, isAbsolute, join, resolve } from "node:path";
 import { z } from "zod";
 import { analysisSchema, type Activity, type Analysis, type Session } from "../shared/contracts";
+import { ProviderError, splitSelection, type ProviderExecute } from "./provider";
 import { UsageLedger, readTokens } from "./usage";
 
 const instructions = `You are a project session observer. Return only JSON matching the supplied schema. No tools.
@@ -65,8 +66,10 @@ export class Luna {
   private preparation: Promise<{ binary: string; args: string[] }> | null = null;
   private generation = Promise.resolve();
   private model = "gpt-6-luna";
+  private selection: string | null = null;
+  setSelection(selection: string | null) { this.selection = selection; }
   setModel(model: string) { this.model = model; }
-  constructor(readonly directory: string, readonly usage?: UsageLedger, private readonly execute: typeof run = run) {}
+  constructor(readonly directory: string, readonly usage?: UsageLedger, private readonly execute: typeof run = run, private readonly providerExecute?: ProviderExecute) {}
   private prepare() {
     return this.preparation ??= (async () => {
       await mkdir(this.directory, { recursive: true, mode: 0o700 });
@@ -91,7 +94,8 @@ export class Luna {
   }
   private async analyzeNow(session: Session, peers: Session[], events: Activity[], signal: AbortSignal, task: "session_review" | "workspace_naming") {
     if (signal.aborted) throw new Error("Observer canceled");
-    const model = this.model;
+    const selection = this.selection ?? `codex/${this.model}`;
+    const {provider, model} = splitSelection(selection);
     const input = JSON.stringify({
       task,
       session: { id: session.id, title: session.title, workspaceId: session.workspaceId, workspaceTitle: session.workspaceTitle, coverage: session.coverage, previous: session.analysis },
@@ -101,23 +105,32 @@ export class Luna {
         scope: peer.analysis?.scope, resources: peer.analysis?.resources, nextAction: peer.analysis?.nextAction,
         recent: peer.recent.slice(-3).map(row => ({...row, text: row.text.slice(0, 1200)})) })),
     });
-    const callId = await this.usage?.begin({task, model, projectId: session.projectId, projectName: session.projectName, workspaceId: session.workspaceId,
+    const callId = await this.usage?.begin({task, provider, model, projectId: session.projectId, projectName: session.projectName, workspaceId: session.workspaceId,
       workspaceName: session.workspaceTitle, sessionTitle: session.analysis?.suggestedName ?? session.title, inputBytes: Buffer.byteLength(input), activityCount: events.length});
     const started = performance.now();
+    let nativeResult: import("./provider").ProviderResult | undefined;
     let output = "", status: "completed" | "failed" | "canceled" = "failed", failure: string | null = null;
     try {
+      if (this.providerExecute) {
+        nativeResult = await this.providerExecute(selection, input, instructions, z.toJSONSchema(analysisSchema), signal);
+        output = nativeResult.text;
+        const result = analysisSchema.parse(JSON.parse(output.replace(/^```(?:json)?\s*|\s*```$/g, "").trim()));
+        status = "completed"; return result;
+      }
+      if (provider !== "codex") throw new Error("Paseo provider connection is required for this model");
       const {binary, args} = await this.prepare();
       const callArgs = [...args];
       callArgs[callArgs.indexOf("-m") + 1] = model;
       output = await this.execute(binary, callArgs, input, this.directory, signal);
       const result = parseOutput(output); status = "completed"; return result;
     } catch (error) {
+      if (error instanceof ProviderError) { nativeResult = error.result; output = nativeResult.text; }
       if (error instanceof CommandError) output = error.output;
       status = signal.aborted ? "canceled" : "failed";
       failure = error instanceof Error ? error.message : "Model call failed";
       throw error;
     } finally {
-      if (callId) await this.usage!.finish(callId, {status, tokens: readTokens(output), outputBytes: Buffer.byteLength(output),
+      if (callId) await this.usage!.finish(callId, {status, tokens: nativeResult?.tokens ?? (this.providerExecute ? null : readTokens(output)), costUsd: nativeResult?.costUsd ?? null, outputBytes: Buffer.byteLength(output),
         durationMs: Math.max(0, performance.now() - started), error: failure}).catch(() => { console.warn("Overseer usage could not be saved; model result retained"); });
     }
   }
