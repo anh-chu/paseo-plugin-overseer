@@ -29,7 +29,7 @@ export function OverseerScreen({ theme, layout, navigation, host, params }: Plug
     onPress={onPress} style={{ paddingHorizontal: 14, paddingVertical: 11, borderRadius: 8, backgroundColor: strong ? colors.foreground : colors.surface2, opacity: mutation.isPending ? 0.5 : 1 }}>
     <Text style={{ ...text, fontSize: 13, fontWeight: "600", color: strong ? colors.surface0 : colors.foreground }}>{label}</Text>
   </Pressable>;
-  const action = (session: SessionView, kind: "review" | "rename" | "renameWorkspace" | "lock") => mutation.mutate({ sessionId: session.id, action: kind });
+  const action = (session: SessionView, kind: "review" | "rename" | "renameWorkspace" | "lock" | "lockWorkspace") => mutation.mutate({ sessionId: session.id, action: kind });
   return <ScrollView style={{ flex: 1, backgroundColor: colors.surface0 }} contentContainerStyle={{ padding: layout.compact ? 16 : 32, gap: 24, maxWidth: 1120, width: "100%", alignSelf: "center" }}>
     <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
       <Text style={{ ...text, fontSize: layout.compact ? 28 : 36, fontWeight: "700", letterSpacing: -1 }}>Overseer</Text>
@@ -100,7 +100,11 @@ export function OverseerScreen({ theme, layout, navigation, host, params }: Plug
             {current.title !== current.analysis.suggestedName && button(`Use “${current.analysis.suggestedName}”`, () => action(current, "rename"))}
             {button(current.nameLocked ? "Allow automatic tab naming" : "Keep tab name", () => action(current, "lock"))}
           </View>
-          {current.workspaceTitle !== current.analysis.workspaceName && <View style={{ alignItems: "flex-start" }}>{button(`Name workspace “${current.analysis.workspaceName}”`, () => action(current, "renameWorkspace"))}</View>}
+          <Text style={muted}>Current workspace: {current.workspaceTitle}</Text>
+          <View style={{flexDirection: "row", gap: 8, flexWrap: "wrap"}}>
+            {current.workspaceTitle !== current.analysis.workspaceName && button(`Name workspace “${current.analysis.workspaceName}”`, () => action(current, "renameWorkspace"))}
+            {button(current.workspaceNameLocked ? "Allow automatic workspace naming" : "Keep workspace name", () => action(current, "lockWorkspace"))}
+          </View>
         </View>
       </>}
     </>}
@@ -122,6 +126,7 @@ export function OverseerSettings({ theme }: PluginSurfaceProps) {
     </View>
     <SettingsSection title="Names"><SettingsCard>
       <SettingsSwitch label="Automatically name generic tabs" disabled={settings.saving} value={settings.values.autoName} onValueChange={autoName => { void settings.save({...settings.values, autoName}, settings.revision); }} />
+      <SettingsSwitch label="Automatically name workspaces" disabled={settings.saving} value={settings.values.autoNameWorkspaces} onValueChange={autoNameWorkspaces => { void settings.save({...settings.values, autoNameWorkspaces}, settings.revision); }} />
     </SettingsCard></SettingsSection>
     {settings.saveError && <Text style={{color: theme.colors.foreground}}>{settings.saveError}</Text>}
     <Text style={{color: theme.colors.foregroundMuted}}>gpt-6-luna via Codex. Uses the daemon’s existing Codex login. Activity is sent to Codex for analysis. Other naming plugins remain enabled; manual names are preserved.</Text>

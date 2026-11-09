@@ -6,6 +6,6 @@ Settings select projects by name. Katalon is selected by default. Existing long 
 
 Alerts must include quotes that match the activity the plugin read. The model can still miss or misinterpret a conflict. Alerts are advisory. Overseer does not send instructions to working sessions, stop them, or change their permissions.
 
-Tab and workspace names are suggested in the session detail. Apply a name there. Automatic tab naming is off by default and only changes generic names or names previously set by Overseer. A manual name change locks automatic naming. Existing naming plugins remain enabled.
+Tab and workspace names are suggested in the session detail. Apply a name there. Automatic workspace naming is on by default. It changes generic workspace names or names managed by Overseer after all watched tabs finish review, deriving one shared name from their purposes and scopes. Renames are at least 30 minutes apart. Existing descriptive names are preserved until you choose Allow automatic workspace naming. Keep workspace name locks the current name, and an external name change also locks further automatic changes. Automatic tab naming has a separate switch and is off by default. Existing naming plugins remain enabled.
 
 Requires Paseo 0.15.1 or later and an authenticated Codex CLI with access to gpt-6-luna. Selected session activity is sent to Codex for analysis. Summaries, pending activity, and read positions are stored on the daemon under plugin-data/overseer.

@@ -1,5 +1,5 @@
 import { mkdtemp, rm } from "node:fs/promises";
-import type { PaseoApi } from "@getpaseo/client";
+import type { PaseoApi, PaseoWorkspace } from "@getpaseo/client";
 import { afterEach, expect, it, vi } from "vitest";
 import { preferences, sessionSchema, analysisSchema } from "../shared/contracts";
 import { Observer } from "./observer";
@@ -17,11 +17,12 @@ async function fixture(analyze = vi.fn().mockResolvedValue(result)) {
   store.state.sessions.one = session;
   const refetch = vi.fn();
   const api = {agents: {ref: () => ({timeline: {refetch}})}} as unknown as PaseoApi;
-  const luna = {directory, analyze} as unknown as Luna;
+  const nameWorkspace = vi.fn().mockResolvedValue(result.workspaceName);
+  const luna = {directory, analyze, nameWorkspace} as unknown as Luna;
   const observer = new Observer(api, store, luna, preferences.schema.parse({}), "/tmp/not-a-daemon");
   observer.watched.set("one", vi.fn());
   running.push({observer, directory});
-  return {observer, store, session, refetch, analyze, api};
+  return {observer, store, session, refetch, analyze, api, nameWorkspace};
 }
 const row = {seqStart: 6, seqEnd: 6, item: {type: "user_message", text: "Fix report counts only"}};
 const page = {entries: [row], epoch: "old", error: null, staleCursor: false, reset: false, gap: false, hasNewer: false, hasOlder: false, endCursor: {epoch: "old", seq: 6}, window: {minSeq: 0, maxSeq: 6}};
@@ -93,5 +94,88 @@ it("refuses to overwrite a workspace renamed since the suggestion was made", asy
   const setTitle = vi.fn();
   Object.assign(api, {workspaces: {ref: () => ({refresh: vi.fn().mockResolvedValue({title: "User's workspace", name: "Reports"}), setTitle})}});
   await expect(observer.rename("one", true)).rejects.toThrow("name changed");
+  expect(setTitle).not.toHaveBeenCalled();
+});
+
+async function workspaceFixture() {
+  const context = await fixture();
+  context.session.analysis = result;
+  context.session.workspaceTitle = "main";
+  let title = "main";
+  const descriptor = (): PaseoWorkspace => ({id: "workspace", title, name: "main", projectId: "project", projectDisplayName: "Katalon"} as PaseoWorkspace);
+  const setTitle = vi.fn(async (next: string) => { title = next; context.observer.observeWorkspace(descriptor()); return {title}; });
+  Object.assign(context.api, {workspaces: {ref: () => ({refresh: vi.fn(async () => descriptor()), setTitle})}});
+  return {...context, setTitle, externalRename: (next: string) => {title = next; context.observer.observeWorkspace(descriptor());}};
+}
+
+it("automatically names a generic workspace and does not mistake its own event for a manual change", async () => {
+  const {observer, session, store, setTitle} = await workspaceFixture();
+  await observer.nameReadyWorkspaces();
+  expect(setTitle).toHaveBeenCalledWith("Reliable report counts");
+  expect(session.workspaceTitle).toBe("Reliable report counts");
+  expect(store.state.workspaceNames.workspace.locked).toBe(false);
+});
+
+it("preserves an existing descriptive workspace name until explicitly allowed", async () => {
+  const {observer, session, setTitle, externalRename} = await workspaceFixture();
+  externalRename("My report workspace");
+  await observer.nameReadyWorkspaces();
+  expect(setTitle).not.toHaveBeenCalled();
+  await observer.toggleWorkspaceNameLock(session.id);
+  await vi.waitFor(() => expect(setTitle).toHaveBeenCalledOnce());
+});
+
+it("waits for all workspace tabs to finish review and derives one name from them together", async () => {
+  const {observer, store, setTitle, session, nameWorkspace} = await workspaceFixture();
+  const peer = {...session, id: "peer", analysis: {...result, workspaceName: "Different purpose"}};
+  store.state.sessions.peer = peer; observer.watched.set("peer", vi.fn());
+  peer.pending = [{seq: 1, role: "user_message", text: "New direction", fingerprint: "new"}];
+  await observer.nameReadyWorkspaces(); expect(setTitle).not.toHaveBeenCalled();
+  expect(nameWorkspace).not.toHaveBeenCalled();
+  peer.pending = [];
+  await observer.nameReadyWorkspaces(); expect(setTitle).toHaveBeenCalledOnce();
+  expect(nameWorkspace.mock.calls[0][0]).toHaveLength(2);
+});
+
+it("persists a manual workspace override and blocks further automatic writes", async () => {
+  const {observer, store, externalRename, setTitle} = await workspaceFixture();
+  await observer.nameReadyWorkspaces();
+  externalRename("My chosen workspace name");
+  await store.save();
+  const restored = new Store(store.directory); await restored.load();
+  expect(restored.state.workspaceNames.workspace.locked).toBe(true);
+  await observer.nameReadyWorkspaces(); expect(setTitle).toHaveBeenCalledOnce();
+});
+
+it("does not rename again during the workspace naming cooldown", async () => {
+  const {observer, session, setTitle} = await workspaceFixture();
+  await observer.nameReadyWorkspaces();
+  session.analysis = {...result, workspaceName: "A different report name"};
+  await observer.nameReadyWorkspaces(); expect(setTitle).toHaveBeenCalledOnce();
+});
+
+it("respects the workspace naming switch", async () => {
+  const {observer, setTitle} = await workspaceFixture();
+  observer.settings.autoNameWorkspaces = false;
+  await observer.nameReadyWorkspaces(); expect(setTitle).not.toHaveBeenCalled();
+});
+
+it("serializes concurrent requests to rename the same workspace", async () => {
+  const {observer, setTitle} = await workspaceFixture();
+  const results = await Promise.allSettled([observer.rename("one", true), observer.rename("one", true)]);
+  expect(setTitle).toHaveBeenCalledOnce();
+  expect(results.filter(value => value.status === "rejected")).toHaveLength(1);
+});
+
+it("discards a generated workspace name when another tab arrives during naming", async () => {
+  const {observer, store, session, nameWorkspace, setTitle} = await workspaceFixture();
+  let finish!: (name: string) => void;
+  nameWorkspace.mockReturnValueOnce(new Promise<string>(resolve => {finish = resolve;}));
+  const work = observer.nameReadyWorkspaces();
+  await vi.waitFor(() => expect(nameWorkspace).toHaveBeenCalled());
+  store.state.sessions.new = {...session, id: "new", analysis: null};
+  observer.watched.set("new", vi.fn());
+  finish("Reliable report counts");
+  await work;
   expect(setTitle).not.toHaveBeenCalled();
 });

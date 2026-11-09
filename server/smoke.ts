@@ -2,7 +2,7 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Luna } from "./model";
 import { activity, checkedAnalysis } from "./activity";
-import { sessionSchema } from "../shared/contracts";
+import { analysisSchema, sessionSchema } from "../shared/contracts";
 
 async function main() {
   const directory = await mkdtemp("/tmp/overseer-luna-");
@@ -23,9 +23,17 @@ async function main() {
   const authorized = checkedAnalysis(await model.analyze(own, [peer], [approved], new AbortController().signal), own, [peer], [approved]);
   await writeFile("/tmp/overseer-smoke.json", JSON.stringify({model: "gpt-6-luna", transport: "Codex CLI", unauthorized: result, authorized}, null, 2));
   if (authorized.findings.length) throw new Error("Luna flagged a user-authorized scope change and handoff");
+  own.workspaceTitle = "main";
+  own.analysis = analysisSchema.parse({...authorized, purpose: "Fix missing report counts", scope: ["Report counts"], decisions: [], resources: [], findings: []});
+  peer.workspaceId = own.workspaceId; peer.workspaceTitle = "main";
+  peer.analysis = analysisSchema.parse({...authorized, purpose: "Verify report exports", scope: ["Report exports"], decisions: [], resources: [], findings: []});
+  const workspaceName = await model.nameWorkspace([own, peer], new AbortController().signal);
+  if (!/report/i.test(workspaceName) || workspaceName === "main") throw new Error("Luna did not derive a shared descriptive workspace name");
+  await writeFile("/tmp/overseer-workspace-smoke.json", JSON.stringify({workspaceName, model: "gpt-6-luna", transport: "Codex CLI"}));
   await writeFile("/tmp/overseer-smoke-tests.json", JSON.stringify([
     {name: "Live Luna detects explicit scope or ownership conflict", status: "passed"},
     {name: "Live Luna accepts user-authorized scope change and handoff", status: "passed"},
+    {name: "Live Luna derives one workspace name from multiple tab purposes", status: "passed"},
   ]));
   console.log("Live Luna checks passed: detected unauthorized work and accepted an explicit user-authorized handoff.");
 }

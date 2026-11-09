@@ -4,6 +4,7 @@ import { sessionSchema } from "../shared/contracts";
 import { batch, checkedAnalysis, genericName, ingest } from "./activity";
 import { Luna, executable, run } from "./model";
 import { Store } from "./store";
+import { createHash } from "node:crypto";
 
 export class Observer {
   readonly lifetime = new AbortController();
@@ -16,6 +17,10 @@ export class Observer {
   private agents = new Map<string, PaseoAgent>();
   private served = new Map<string, number>();
   private batchNumber = 0;
+  private pendingWorkspaceNames = new Map<string, string>();
+  private workspaceRenameLocks = new Set<string>();
+  private workspaceReviews = new Map<string, string>();
+  private workspaceReviewBusy = false;
   private initialized: Promise<void> | null = null;
   private worker: Promise<void> | null = null;
   private wakeTimer: ReturnType<typeof setTimeout> | null = null;
@@ -33,10 +38,7 @@ export class Observer {
     }
     if (this.lifetime.signal.aborted) return;
     const workspacePage = await this.paseo.workspaces.list({ subscribe: {}, page: { limit: 100 } });
-    const acceptWorkspace = (workspace: PaseoWorkspace) => {
-      this.workspaces.set(workspace.id, workspace);
-      for (const agent of this.agents.values()) if (agent.workspaceId === workspace.id) this.accept(agent);
-    };
+    const acceptWorkspace = (workspace: PaseoWorkspace) => this.observeWorkspace(workspace);
     const workspaces = [...workspacePage.entries];
     let workspaceCursor = workspacePage.pageInfo.nextCursor;
     while (workspaceCursor) {
@@ -75,6 +77,67 @@ export class Observer {
       cursor = page.pageInfo.nextCursor;
     }
     this.kick();
+  }
+
+  observeWorkspace(workspace: PaseoWorkspace) {
+    const title = workspace.title ?? workspace.name;
+    const tracked = this.store.state.workspaceNames[workspace.id];
+    if (tracked && tracked.name !== title && this.pendingWorkspaceNames.get(workspace.id) !== title) {
+      tracked.locked = true;
+      void this.store.save().catch(() => { this.error = "Cannot save workspace name protection"; });
+    }
+    this.workspaces.set(workspace.id, workspace);
+    for (const session of Object.values(this.store.state.sessions)) if (session.workspaceId === workspace.id) session.workspaceTitle = title;
+    for (const agent of this.agents.values()) if (agent.workspaceId === workspace.id) this.accept(agent);
+  }
+
+  workspaceNameLocked(workspaceId: string, title: string) {
+    const tracked = this.store.state.workspaceNames[workspaceId];
+    return tracked ? tracked.locked || tracked.name !== title : !genericName(title);
+  }
+
+  async toggleWorkspaceNameLock(id: string) {
+    const session = this.store.state.sessions[id];
+    if (!session || !this.watched.has(id)) throw new Error("This session is outside the watched projects");
+    this.store.state.workspaceNames[session.workspaceId] = {
+      name: session.workspaceTitle,
+      locked: !this.workspaceNameLocked(session.workspaceId, session.workspaceTitle), renamedAt: 0,
+    };
+    await this.store.save();
+    this.kick();
+  }
+
+  async nameReadyWorkspaces() {
+    if (!this.settings.enabled || !this.settings.autoNameWorkspaces || this.lifetime.signal.aborted || this.workspaceReviewBusy) return;
+    this.workspaceReviewBusy = true;
+    try {
+    const workspaceIds = new Set(Object.values(this.store.state.sessions).filter(session => this.watched.has(session.id)).map(session => session.workspaceId));
+    for (const workspaceId of workspaceIds) {
+      if (this.pendingWorkspaceNames.has(workspaceId)) continue;
+      const tabs = Object.values(this.store.state.sessions).filter(session => session.workspaceId === workspaceId && this.watched.has(session.id));
+      const first = tabs[0];
+      if (!first || tabs.some(session => !session.analysis || session.pending.length || session.coverage === "recovering" || this.timers.has(session.id))) continue;
+      if (this.workspaceNameLocked(workspaceId, first.workspaceTitle)) continue;
+      const tracked = this.store.state.workspaceNames[workspaceId];
+      if (tracked && Date.now() - tracked.renamedAt < 30 * 60 * 1000) continue;
+      const signature = createHash("sha256").update(JSON.stringify(tabs.map(session => [session.id, session.workspaceTitle, session.analysis!.purpose, session.analysis!.scope, session.analysis!.decisions]))).digest("hex");
+      if (this.workspaceReviews.get(workspaceId) === signature) continue;
+      try {
+        const titleBefore = first.workspaceTitle;
+        const name = (await this.luna.nameWorkspace(tabs, this.lifetime.signal)).trim();
+        if (name.length < 5 || /[\r\n]/.test(name)) throw new Error("The model returned an invalid workspace name");
+        const currentTabs = Object.values(this.store.state.sessions).filter(session => session.workspaceId === workspaceId && this.watched.has(session.id));
+        if (this.lifetime.signal.aborted || !this.settings.enabled || !this.settings.autoNameWorkspaces ||
+          currentTabs.length !== tabs.length || currentTabs.some(session => !tabs.includes(session)) ||
+          first.workspaceTitle !== titleBefore || tabs.some(session => session.pending.length || this.timers.has(session.id) || session.workspaceId !== workspaceId || !this.watched.has(session.id)) || this.workspaceNameLocked(workspaceId, first.workspaceTitle)) continue;
+        this.workspaceReviews.set(workspaceId, signature);
+        for (const session of tabs) session.analysis!.workspaceName = name;
+        if (name !== first.workspaceTitle) await this.rename(first.id, true);
+        else await this.store.save();
+      }
+      catch (error) { this.recordError(first.id, error); }
+    }
+    } finally { this.workspaceReviewBusy = false; }
   }
 
   private accept(agent: PaseoAgent) {
@@ -194,7 +257,7 @@ export class Observer {
       const session = Object.values(this.store.state.sessions)
         .filter(value => this.watched.has(value.id) && value.pending.length && (this.cooldown.get(value.id) ?? 0) <= Date.now())
         .sort((a,b) => (this.served.get(a.id) ?? 0) - (this.served.get(b.id) ?? 0) || Number(b.status === "running") - Number(a.status === "running"))[0];
-      if (!session) return;
+      if (!session) { await this.nameReadyWorkspaces(); return; }
       const inputs = batch(session.pending);
       const epoch = session.epoch;
       const projectId = session.projectId;
@@ -211,6 +274,7 @@ export class Observer {
         session.updatedAt = new Date().toISOString(); session.error = null;
         await this.store.save();
         if (this.settings.autoName && !session.nameLocked && (genericName(session.title) || session.title === session.lastAutoName)) await this.rename(session.id, false);
+        await this.nameReadyWorkspaces();
       } catch (error) {
         this.recordError(session.id, error);
         this.cooldown.set(session.id, Date.now() + 60000);
@@ -231,11 +295,19 @@ export class Observer {
     const session = this.store.state.sessions[id];
     if (!session?.analysis || !this.watched.has(id)) throw new Error("Review this session before naming it");
     if (workspace) {
+      if (this.workspaceRenameLocks.has(session.workspaceId)) throw new Error("This workspace is already being named");
+      this.workspaceRenameLocks.add(session.workspaceId);
+      try {
       const current = await this.paseo.workspaces.ref(session.workspaceId).refresh();
       if (!current || (current.title ?? current.name) !== session.workspaceTitle) throw new Error("Workspace name changed; refresh before applying this name");
-      await this.paseo.workspaces.ref(session.workspaceId).setTitle(session.analysis.workspaceName);
-      for (const other of Object.values(this.store.state.sessions)) if (other.workspaceId === session.workspaceId) other.workspaceTitle = session.analysis.workspaceName;
-      this.store.state.workspaceNames[session.workspaceId] = { name: session.analysis.workspaceName, locked: false };
+      const title = session.analysis.workspaceName;
+      this.pendingWorkspaceNames.set(session.workspaceId, title);
+      try {
+        await this.paseo.workspaces.ref(session.workspaceId).setTitle(title);
+        for (const other of Object.values(this.store.state.sessions)) if (other.workspaceId === session.workspaceId) other.workspaceTitle = title;
+        this.store.state.workspaceNames[session.workspaceId] = { name: title, locked: false, renamedAt: Date.now() };
+      } finally { this.pendingWorkspaceNames.delete(session.workspaceId); }
+      } finally { this.workspaceRenameLocks.delete(session.workspaceId); }
     } else {
       const current = await this.paseo.agents.ref(id).refresh();
       if (!current || current.agent.title !== session.title) throw new Error("Session name changed; refresh before applying this name");

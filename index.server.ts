@@ -30,8 +30,8 @@ export default function contribute(server: PluginServerContext) {
   });
   server.handle(statusRpc, async () => {
     await ready;
-    return { sessions: Object.values(observer?.store.state.sessions ?? {}).map(({ pending, recent, anchors, fingerprints, ...session }) => ({ ...session, pendingCount: pending.length })), enabled: observer?.settings.enabled ?? false,
-      autoName: observer?.settings.autoName ?? false, busy: observer?.busy ?? null,
+    return { sessions: Object.values(observer?.store.state.sessions ?? {}).map(({ pending, recent, anchors, fingerprints, ...session }) => ({ ...session, pendingCount: pending.length, workspaceNameLocked: observer!.workspaceNameLocked(session.workspaceId, session.workspaceTitle) })), enabled: observer?.settings.enabled ?? false,
+      autoName: observer?.settings.autoName ?? false, autoNameWorkspaces: observer?.settings.autoNameWorkspaces ?? false, busy: observer?.busy ?? null,
       error: error ?? observer?.error ?? null, dismissed: observer?.store.state.dismissed ?? [] };
   });
   server.handle(actionRpc, async input => {
@@ -42,6 +42,7 @@ export default function contribute(server: PluginServerContext) {
     if (input.action === "review") await observer.review(input.sessionId);
     else if (input.action === "rename" || input.action === "renameWorkspace") await observer.rename(input.sessionId, input.action === "renameWorkspace");
     else if (input.action === "lock") { session.nameLocked = !session.nameLocked; await observer.store.save(); }
+    else if (input.action === "lockWorkspace") await observer.toggleWorkspaceNameLock(input.sessionId);
     else if (input.action === "dismiss" && input.findingKey) {
       observer.store.state.dismissed = [...new Set([...observer.store.state.dismissed, input.findingKey])].slice(-500);
       await observer.store.save();

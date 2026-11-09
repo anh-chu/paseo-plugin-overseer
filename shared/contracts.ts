@@ -7,6 +7,7 @@ export const preferences = defineSettings({
     enabled: z.boolean().default(true),
     projectNames: z.array(z.string()).default(["Katalon"]),
     autoName: z.boolean().default(false),
+    autoNameWorkspaces: z.boolean().default(true),
   }),
 });
 export type Settings = z.output<typeof preferences.schema>;
@@ -54,19 +55,19 @@ export type Session = z.infer<typeof sessionSchema>;
 export const stateSchema = z.object({
   version: z.literal(1), sessions: z.record(z.string(), sessionSchema),
   dismissed: z.array(z.string()).default([]),
-  workspaceNames: z.record(z.string(), z.object({ name: z.string(), locked: z.boolean() })).default({}),
+  workspaceNames: z.record(z.string(), z.object({ name: z.string(), locked: z.boolean(), renamedAt: z.number().default(0) })).default({}),
 });
 export type State = z.infer<typeof stateSchema>;
-export const sessionViewSchema = sessionSchema.omit({ pending: true, recent: true, anchors: true, fingerprints: true }).extend({ pendingCount: z.number() });
+export const sessionViewSchema = sessionSchema.omit({ pending: true, recent: true, anchors: true, fingerprints: true }).extend({ pendingCount: z.number(), workspaceNameLocked: z.boolean() });
 export type SessionView = z.infer<typeof sessionViewSchema>;
 export function findingKey(sessionId: string, finding: Analysis["findings"][number]) {
   return JSON.stringify([sessionId, finding.kind, finding.title, finding.otherSessionId]);
 }
 export const statusRpc = defineRpc({ name: "overseer.status", input: z.object({}), output: z.object({
-  sessions: z.array(sessionViewSchema), enabled: z.boolean(), autoName: z.boolean(),
+  sessions: z.array(sessionViewSchema), enabled: z.boolean(), autoName: z.boolean(), autoNameWorkspaces: z.boolean(),
   busy: z.string().nullable(), error: z.string().nullable(), dismissed: z.array(z.string()),
 }) });
 export const actionRpc = defineRpc({ name: "overseer.action", input: z.object({
-  action: z.enum(["review", "rename", "renameWorkspace", "lock", "dismiss"]),
+  action: z.enum(["review", "rename", "renameWorkspace", "lock", "lockWorkspace", "dismiss"]),
   sessionId: z.string(), findingKey: z.string().optional(),
 }), output: z.object({ ok: z.boolean() }) });

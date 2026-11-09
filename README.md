@@ -23,7 +23,9 @@ The model runs in a private empty directory, with user configuration, project in
 
 ## Names
 
-The detail view applies suggested tab and workspace names. It checks the current name again before writing. Automatic tab naming is off by default. When enabled, it changes only generic names or names previously set by Overseer. An external name change locks further automatic changes. Existing naming plugins are not disabled.
+The detail view applies suggested tab and workspace names. It checks the current name again before writing. Automatic workspace naming is on by default and has a separate settings switch. It changes generic names or names managed by Overseer after every watched tab finishes review. Luna derives one shared workspace name from all tab purposes and scopes together. Renames are at least 30 minutes apart, unchanged context is not sent for repeated naming calls, and concurrent requests are serialized. Existing descriptive names are preserved until you select Allow automatic workspace naming. Keep workspace name locks the current name. An external name change persists a lock across restarts.
+
+Automatic tab naming is off by default. When enabled, it changes only generic names or names previously set by Overseer. An external tab name change locks further automatic changes. Existing naming plugins are not disabled.
 
 ## Checks
 
