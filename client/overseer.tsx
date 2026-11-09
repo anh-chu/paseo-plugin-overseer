@@ -134,7 +134,7 @@ export function OverseerScreen({ theme, layout, navigation, host, params }: Plug
           <Text style={muted}>Current workspace: {current.workspaceTitle}</Text>
           <View style={{flexDirection: "row", gap: 8, flexWrap: "wrap"}}>
             {current.workspaceTitle !== current.analysis.workspaceName && button(`Name workspace “${current.analysis.workspaceName}”`, () => action(current, "renameWorkspace"))}
-            {button(current.workspaceNameLocked ? "Allow automatic workspace naming" : "Keep workspace name", () => action(current, "lockWorkspace"))}
+            {button(current.workspaceNameLocked ? "Unlock workspace name" : "Lock workspace name", () => action(current, "lockWorkspace"))}
           </View>
         </View>
       </>}

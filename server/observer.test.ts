@@ -116,13 +116,35 @@ it("automatically names a generic workspace and does not mistake its own event f
   expect(store.state.workspaceNames.workspace.locked).toBe(false);
 });
 
-it("preserves an existing descriptive workspace name until explicitly allowed", async () => {
+it("automatically names an existing descriptive workspace without a workspace opt-in", async () => {
   const {observer, session, setTitle, externalRename} = await workspaceFixture();
   externalRename("My report workspace");
+  expect(observer.workspaceNameLocked(session.workspaceId, session.workspaceTitle)).toBe(false);
+  await observer.nameReadyWorkspaces();
+  expect(setTitle).toHaveBeenCalledWith("Reliable report counts");
+});
+
+it("starts naming reviewed workspaces when the global switch is enabled", async () => {
+  const {observer, api, setTitle, externalRename} = await workspaceFixture();
+  observer.settings.autoNameWorkspaces = false;
+  externalRename("Existing report workspace");
   await observer.nameReadyWorkspaces();
   expect(setTitle).not.toHaveBeenCalled();
+  Object.assign(api.agents, {list: vi.fn().mockResolvedValue({entries: [], pageInfo: {nextCursor: null}})});
+  await observer.updateSettings({...observer.settings, autoNameWorkspaces: true});
+  await vi.waitFor(() => expect(setTitle).toHaveBeenCalledWith("Reliable report counts"));
+});
+
+it("preserves an explicit workspace name lock when global naming is enabled", async () => {
+  const {observer, session, api, store, setTitle, externalRename} = await workspaceFixture();
+  observer.settings.autoNameWorkspaces = false;
+  externalRename("Keep this workspace name");
   await observer.toggleWorkspaceNameLock(session.id);
-  await vi.waitFor(() => expect(setTitle).toHaveBeenCalledOnce());
+  expect(store.state.workspaceNames.workspace.locked).toBe(true);
+  Object.assign(api.agents, {list: vi.fn().mockResolvedValue({entries: [], pageInfo: {nextCursor: null}})});
+  await observer.updateSettings({...observer.settings, autoNameWorkspaces: true});
+  await observer.nameReadyWorkspaces();
+  expect(setTitle).not.toHaveBeenCalled();
 });
 
 it("waits for all workspace tabs to finish review and derives one name from them together", async () => {

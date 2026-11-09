@@ -98,7 +98,7 @@ export class Observer {
 
   workspaceNameLocked(workspaceId: string, title: string) {
     const tracked = this.store.state.workspaceNames[workspaceId];
-    return tracked ? tracked.locked || tracked.name !== title : !genericName(title);
+    return tracked ? tracked.locked || tracked.name !== title : false;
   }
 
   async toggleWorkspaceNameLock(id: string) {

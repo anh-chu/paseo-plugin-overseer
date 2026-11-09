@@ -49,7 +49,7 @@ Every finding must cite matching source text; conflicts require evidence from bo
 
 ## Names
 
-The detail view applies suggested tab and workspace names. It checks the current name again before writing. Automatic workspace naming is on by default and has a separate settings switch. It changes generic names or names managed by Overseer after every watched tab finishes review. The selected model derives one shared workspace name from all tab purposes and scopes together. Renames are at least 30 minutes apart, unchanged context is not sent for repeated naming calls, and concurrent requests are serialized. Existing descriptive names are preserved until you select Allow automatic workspace naming. Keep workspace name locks the current name. An external name change persists a lock across restarts.
+The detail view applies suggested tab and workspace names. It checks the current name again before writing. Automatic workspace naming is on by default and has a separate settings switch. It names every unlocked workspace after its watched tabs finish review, including workspaces that already have descriptive names. No per-workspace opt-in is needed. The selected model derives one shared workspace name from all tab purposes and scopes together. Renames are at least 30 minutes apart, unchanged context is not sent for repeated naming calls, and concurrent requests are serialized. Lock workspace name preserves a name; Unlock workspace name makes it eligible again. An external name change persists a lock across restarts.
 
 Automatic tab naming is off by default. When enabled, it changes only generic names or names previously set by Overseer. An external tab name change locks further automatic changes. Existing naming plugins are not disabled.
 
