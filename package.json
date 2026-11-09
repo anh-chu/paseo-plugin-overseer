@@ -1,0 +1,35 @@
+{
+  "name": "paseo-overseer",
+  "private": true,
+  "version": "0.1.0",
+  "files": [
+    "paseo-plugin.json",
+    "OVERVIEW.md",
+    "OVERVIEW.*.md",
+    "index.client.ts",
+    "index.client.tsx",
+    "index.server.ts",
+    "index.server.tsx",
+    "client/",
+    "server/",
+    "shared/"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:smoke": "tsx server/smoke.ts"
+  },
+  "devDependencies": {
+    "@getpaseo/client": "^0.15.1",
+    "@getpaseo/plugin": "0.15.1",
+    "@tanstack/react-query": "^5.90.11",
+    "@types/node": "^26.6.6",
+    "@types/react": "~19.2.0",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^5.1.0",
+    "zod": "^4.4.3"
+  }
+}

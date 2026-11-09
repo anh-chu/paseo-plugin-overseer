@@ -1,0 +1,9 @@
+{
+  "id": "overseer",
+  "name": "Overseer",
+  "description": "Follow project sessions, spot conflicting work and scope drift, and keep names understandable.",
+  "media": [],
+  "requirements": {
+    "paseo": ">=0.15.1"
+  }
+}
