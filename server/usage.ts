@@ -54,8 +54,8 @@ export class UsageLedger {
     }).catch(error => { this.error = "Usage could not be saved"; throw error; });
     this.writes = next; return next;
   }
-  async begin(input: Pick<UsageCall, "task" | "projectId" | "projectName" | "workspaceId" | "workspaceName" | "sessionTitle" | "inputBytes" | "activityCount">) {
-    const call: UsageCall = {...input, id: randomUUID(), model: "gpt-6-luna", startedAt: new Date().toISOString(), finishedAt: null, durationMs: null,
+  async begin(input: Pick<UsageCall, "task" | "projectId" | "projectName" | "workspaceId" | "workspaceName" | "sessionTitle" | "inputBytes" | "activityCount"> & {model?: string}) {
+    const call: UsageCall = {...input, id: randomUUID(), model: input.model ?? "gpt-6-luna", startedAt: new Date().toISOString(), finishedAt: null, durationMs: null,
       status: "running", tokens: null, outputBytes: 0, error: null};
     this.state.recent.push(call);
     // Aggregate history stays intact; retain at most 300 completed call details plus running calls.

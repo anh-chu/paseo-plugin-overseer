@@ -45,5 +45,6 @@ export default function contribute(client: PluginClientContext) {
   client.addWorkspacePanel({ id: "overseer", title: "Overseer", icon: "ScanEye", Component: props => <OverseerScreen {...props} params={{workspaceId: props.workspaceId}} /> });
   client.addCommandCenterItem({id: "open-overseer", title: "Open project overseer", icon: "ScanEye", context: "global", onSelect: ({openScreen}) => openScreen({screenId: "overseer"})});
   client.addCommandCenterItem({id: "open-usage", title: "Open Overseer usage", icon: "ChartNoAxesCombined", context: "global", onSelect: ({openScreen}) => openScreen({screenId: "overseer", params: {view: "usage"}})});
+  client.addCommandCenterItem({id: "preview-overseer", title: "Preview Overseer with sample data", icon: "ScanEye", context: "global", onSelect: ({openScreen}) => openScreen({screenId: "overseer", params: {preview: "sample"}})});
   return () => {};
 }

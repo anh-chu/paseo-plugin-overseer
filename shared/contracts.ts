@@ -5,7 +5,9 @@ export const preferences = defineSettings({
   id: "overseer", scope: "host", version: 1,
   schema: z.object({
     enabled: z.boolean().default(true),
-    projectNames: z.array(z.string()).default(["Katalon"]),
+    projectNames: z.array(z.string()).default([]),
+    projectIds: z.array(z.string()).default([]),
+    codexModel: z.string().trim().regex(/^[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,99}$/).default("gpt-6-luna"),
     autoName: z.boolean().default(false),
     autoNameWorkspaces: z.boolean().default(true),
   }),
@@ -76,3 +78,7 @@ export const actionRpc = defineRpc({ name: "overseer.action", input: z.object({
   action: z.enum(["review", "rename", "renameWorkspace", "lock", "lockWorkspace", "dismiss"]),
   sessionId: z.string(), findingKey: z.string().optional(),
 }), output: z.object({ ok: z.boolean() }) });
+
+export function watchesProject(settings: Settings, projectId: string, name: string) {
+  return settings.projectIds.includes(projectId) || settings.projectNames.some(selected => selected.toLowerCase() === name.toLowerCase());
+}

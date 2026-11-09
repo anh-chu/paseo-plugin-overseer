@@ -100,3 +100,18 @@ it("records both model purposes while keeping requests serialized", async () => 
   expect(usage.report("all").byTask).toHaveLength(2);
   expect(usage.report("all").totals).toMatchObject({calls: 2, completed: 2, inputTokens: 2000, outputTokens: 200});
 });
+
+it("uses the selected model and records the same model in usage", async () => {
+  const usage = await ledger();
+  const analysis = analysisSchema.parse({purpose: "Check report counts", scope: [], decisions: [], resources: [], nextAction: "Check exports", suggestedName: "Check report counts", workspaceName: "Reliable report counts", findings: []});
+  const execute = vi.fn().mockResolvedValue(JSON.stringify({type: "item.completed", item: {type: "agent_message", text: JSON.stringify(analysis)}}));
+  const model = new Luna(join(usage.directory, "helper"), usage, execute);
+  vi.spyOn(model as unknown as {prepare(): Promise<{binary: string; args: string[]}>}, "prepare").mockResolvedValue({binary: "fake", args: ["exec", "-m", "gpt-6-luna", "-"]});
+  model.setModel("another-model");
+  const session = sessionSchema.parse({id: "session", projectId: "project", projectName: "Example", workspaceId: "workspace", workspaceTitle: "Reports", title: "Check report counts", status: "running"});
+  await model.analyze(session, [], [], new AbortController().signal);
+  expect(execute.mock.calls[0][1]).toContain("another-model");
+  expect(usage.report("all").recent[0].model).toBe("another-model");
+  await model.analyze(session, [], [], new AbortController().signal);
+  expect(execute.mock.calls[1][1]).toContain("another-model");
+});

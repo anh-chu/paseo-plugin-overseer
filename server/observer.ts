@@ -1,4 +1,8 @@
-import type { PaseoApi, PaseoAgent, PaseoWorkspace } from "@getpaseo/client";
+import { watchesProject } from "../shared/contracts";
+import type { PluginHandlerContext } from "@getpaseo/plugin/server";
+type PaseoApi = PluginHandlerContext["paseo"];
+type PaseoAgent = Awaited<ReturnType<PaseoApi["agents"]["list"]>>["entries"][number]["agent"];
+type PaseoWorkspace = Awaited<ReturnType<PaseoApi["workspaces"]["list"]>>["entries"][number];
 import type { Settings, Session } from "../shared/contracts";
 import { sessionSchema } from "../shared/contracts";
 import { batch, checkedAnalysis, genericName, ingest } from "./activity";
@@ -28,7 +32,7 @@ export class Observer {
   busy: string | null = null;
   error: string | null = null;
   settings: Settings;
-  constructor(readonly paseo: PaseoApi, readonly store: Store, readonly luna: Luna, settings: Settings, readonly home: string) { this.settings = settings; }
+  constructor(readonly paseo: PaseoApi, readonly store: Store, readonly luna: Luna, settings: Settings, readonly home: string) { this.settings = settings; this.luna.setModel(settings.codexModel); }
 
   start() { return this.initialized ??= this.initialize(); }
   private async initialize() {
@@ -145,7 +149,7 @@ export class Observer {
     this.agents.set(agent.id, agent);
     const workspace = agent.workspaceId ? this.workspaces.get(agent.workspaceId) : undefined;
     if (!this.settings.enabled || agent.archivedAt || agent.internal || !workspace ||
-      !this.settings.projectNames.some(name => name.toLowerCase() === workspace.projectDisplayName.toLowerCase())) {
+      !watchesProject(this.settings, workspace.projectId, workspace.projectDisplayName)) {
       this.forget(agent.id); return;
     }
     let session = this.store.state.sessions[agent.id];
@@ -321,7 +325,7 @@ export class Observer {
   }
 
   async updateSettings(settings: Settings) {
-    this.settings = settings;
+    this.settings = settings; this.luna.setModel(settings.codexModel);
     let cursor: string | undefined;
     do {
       const page = await this.paseo.agents.list({ page: { limit: 100, ...(cursor ? {cursor} : {}) } });

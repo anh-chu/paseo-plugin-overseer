@@ -17,7 +17,7 @@ export function AutomationControls({theme, onSaved}: Pick<PluginSurfaceProps, "t
   </Pressable>;
   return <View style={{gap: 6}}>
     <View style={{flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 6}}>
-      {settings.values.projectNames.length > 1 && <Text style={{color: theme.colors.foregroundMuted, fontSize: 12, marginRight: 4}}>All projects</Text>}
+      {settings.values.projectNames.length + settings.values.projectIds.length > 1 && <Text style={{color: theme.colors.foregroundMuted, fontSize: 12, marginRight: 4}}>All projects</Text>}
       {toggle("enabled", "Watch", "Watch sessions")}{toggle("autoName", "Tab names", "Name tabs")}{toggle("autoNameWorkspaces", "Workspace names", "Name workspaces")}
     </View>
     {settings.saveError && <Text accessibilityRole="alert" style={{color: theme.colors.foreground}}>{settings.saveError}</Text>}

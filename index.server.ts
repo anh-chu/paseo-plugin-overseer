@@ -27,7 +27,7 @@ export default function contribute(server: PluginServerContext) {
     if (stopped) { await connection.close(); return; }
     observer = new Observer(connection.paseo, new Store(directory), new Luna(join(directory, "helper"), usage), current.values, home);
     await observer.start();
-    console.info("Overseer is watching selected projects with gpt-6-luna via Codex");
+    console.info("Overseer is watching selected projects via Codex");
   })().catch(failure => { error = failure instanceof Error ? failure.message : "Overseer could not start"; console.error(error); });
   const offSettings = settings.subscribe(async current => {
     await ready;

@@ -2,7 +2,10 @@
   "id": "overseer",
   "name": "Overseer",
   "description": "Follow project sessions, spot conflicting work and scope drift, and keep names understandable.",
-  "media": [],
+  "media": [
+    "assets/brief.png",
+    "assets/mobile.png"
+  ],
   "requirements": {
     "paseo": ">=0.15.1"
   }

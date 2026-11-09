@@ -5,13 +5,17 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { actionRpc, findingKey, preferences, statusRpc, type SessionView } from "../shared/contracts";
+import { sampleSessions } from "../shared/sample";
+import { ProjectPicker } from "./projects";
 import { UsagePanel } from "./usage";
 import { AutomationControls } from "./automation";
 import { ProjectBrief } from "./brief";
 
 export function OverseerScreen({ theme, layout, navigation, host, params }: PluginScreenProps) {
+  const sample = params.preview === "sample";
   const status = useRpc(statusRpc), act = useRpc(actionRpc);
-  const query = useQuery({ queryKey: ["overseer", host.id], queryFn: () => status({}), refetchInterval: 4000 });
+  const settings = useSettings(preferences);
+  const query = useQuery({ queryKey: ["overseer", host.id], queryFn: () => status({}), enabled: !sample, refetchInterval: 4000 });
   const mutation = useMutation({ mutationFn: act, onSuccess: () => query.refetch() });
   const [selected, setSelected] = useState<string | null>(params.sessionId ?? null);
   const [showEvidence, setShowEvidence] = useState<string | null>(null);
@@ -24,7 +28,7 @@ export function OverseerScreen({ theme, layout, navigation, host, params }: Plug
   const colors = theme.colors;
   const text = { color: colors.foreground, fontSize: 13 };
   const muted = { color: colors.foregroundMuted, fontSize: 11 };
-  const sessions = (query.data?.sessions ?? []).filter(session => !params.workspaceId || session.workspaceId === params.workspaceId);
+  const sessions = (sample ? sampleSessions : query.data?.sessions ?? []).filter(session => !params.workspaceId || session.workspaceId === params.workspaceId);
   const visibleFindings = (session: SessionView) => (session.analysis?.findings ?? []).filter(finding => !query.data?.dismissed.includes(findingKey(session.id, finding)));
   const concerns = sessions.reduce((count, session) => count + visibleFindings(session).length, 0);
   const current = sessions.find(session => session.id === selected);
@@ -36,6 +40,10 @@ export function OverseerScreen({ theme, layout, navigation, host, params }: Plug
     <Text style={{ ...text, fontSize: 12, fontWeight: "600", color: strong ? colors.surface0 : colors.foreground }}>{label}</Text>
   </Pressable>;
   const action = (session: SessionView, kind: "review" | "rename" | "renameWorkspace" | "lock" | "lockWorkspace") => mutation.mutate({ sessionId: session.id, action: kind });
+  if (sample) return <ScrollView style={{flex: 1, backgroundColor: colors.surface0}} contentContainerStyle={{padding: layout.compact ? 10 : 16, gap: 12, maxWidth: 1200, width: "100%", alignSelf: "center"}}>
+    <Text style={{...muted, fontWeight: "600"}}>Sample data</Text>
+    <ProjectBrief theme={theme} layout={layout} sessions={sampleSessions} dismissed={[]} enabled onSession={() => {}} onInbox={() => {}} />
+  </ScrollView>;
   return <ScrollView style={{ flex: 1, backgroundColor: colors.surface0 }} contentContainerStyle={{ padding: layout.compact ? 10 : 16, gap: 12, maxWidth: 1200, width: "100%", alignSelf: "center" }}>
     <View style={{gap: 7, padding: 8, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, borderRadius: 8}}>
     <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
@@ -48,6 +56,7 @@ export function OverseerScreen({ theme, layout, navigation, host, params }: Plug
     </View>
     <AutomationControls theme={theme} onSaved={() => { void query.refetch(); }} />
     </View>
+    {settings.status === "ready" && !settings.values.projectIds.length && !settings.values.projectNames.length && <ProjectPicker theme={theme} host={host} />}
     {view === "usage" ? <UsagePanel theme={theme} host={host} layout={layout} navigation={navigation} /> : view === "brief" ? <>
       {(query.error || query.data?.error) && <Text accessibilityRole="alert" style={text}>{query.error?.message ?? query.data?.error}</Text>}
       {query.isPending ? <ActivityIndicator color={colors.foreground} /> : <ProjectBrief theme={theme} layout={layout} sessions={sessions} dismissed={query.data?.dismissed ?? []} enabled={query.data?.enabled ?? false}
@@ -133,24 +142,25 @@ export function OverseerScreen({ theme, layout, navigation, host, params }: Plug
   </ScrollView>;
 }
 
-export function OverseerSettings({ theme }: PluginSurfaceProps) {
+export function OverseerSettings({ theme, host }: PluginSurfaceProps) {
   const settings = useSettings(preferences);
-  const [projects, setProjects] = useState<string | null>(null);
+  const [model, setModel] = useState<string | null>(null);
   if (settings.status !== "ready") return <Text style={{ color: theme.colors.foreground }}>Loading settings…</Text>;
   return <ScrollView contentContainerStyle={{ padding: 20, gap: 24 }}>
     <SettingsSection title="Observation"><SettingsCard>
       <SettingsSwitch label="Watch sessions" disabled={settings.saving} value={settings.values.enabled} onValueChange={enabled => { void settings.save({...settings.values, enabled}, settings.revision); }} />
     </SettingsCard></SettingsSection>
-    <View style={{gap: 12}}>
-      <Text style={{color: theme.colors.foreground, fontSize: 16, fontWeight: "600"}}>Projects</Text>
-      <TextInput accessibilityLabel="Projects to watch" value={projects ?? settings.values.projectNames.join(", ")} onChangeText={setProjects} style={{color: theme.colors.foreground, backgroundColor: theme.colors.surface1, padding: 12, borderRadius: 8}} />
-      <Pressable accessibilityRole="button" disabled={settings.saving || projects === null} onPress={() => { void settings.save({...settings.values, projectNames: (projects ?? "").split(",").map(name => name.trim()).filter(Boolean)}, settings.revision); }} style={{alignSelf: "flex-start", padding: 12, borderRadius: 8, backgroundColor: theme.colors.surface2, opacity: settings.saving || projects === null ? 0.5 : 1}}><Text style={{color: theme.colors.foreground}}>Save projects</Text></Pressable>
+    <ProjectPicker theme={theme} host={host} />
+    <View style={{gap: 8}}>
+      <Text style={{color: theme.colors.foreground, fontSize: 14, fontWeight: "600"}}>Codex model</Text>
+      <TextInput accessibilityLabel="Codex model" value={model ?? settings.values.codexModel} onChangeText={setModel} autoCapitalize="none" style={{color: theme.colors.foreground, backgroundColor: theme.colors.surface1, padding: 10, borderRadius: 6}} />
+      <Pressable accessibilityRole="button" disabled={settings.saving || model === null || !preferences.schema.shape.codexModel.safeParse(model).success} onPress={() => { void settings.save({...settings.values, codexModel: model!.trim()}, settings.revision).then(() => setModel(null)).catch(() => {}); }} style={{alignSelf: "flex-start", padding: 10, borderRadius: 6, backgroundColor: theme.colors.surface2}}><Text style={{color: theme.colors.foreground}}>Save model</Text></Pressable>
     </View>
     <SettingsSection title="Names"><SettingsCard>
       <SettingsSwitch label="Automatically name generic tabs" disabled={settings.saving} value={settings.values.autoName} onValueChange={autoName => { void settings.save({...settings.values, autoName}, settings.revision); }} />
       <SettingsSwitch label="Automatically name workspaces" disabled={settings.saving} value={settings.values.autoNameWorkspaces} onValueChange={autoNameWorkspaces => { void settings.save({...settings.values, autoNameWorkspaces}, settings.revision); }} />
     </SettingsCard></SettingsSection>
     {settings.saveError && <Text style={{color: theme.colors.foreground}}>{settings.saveError}</Text>}
-    <Text style={{color: theme.colors.foregroundMuted}}>gpt-6-luna via Codex. Uses the daemon’s existing Codex login. Activity is sent to Codex for analysis. Other naming plugins remain enabled; manual names are preserved.</Text>
+    <Text style={{color: theme.colors.foregroundMuted}}>Uses the daemon’s existing Codex login and the selected model. Activity is sent to Codex for analysis. Other naming plugins remain enabled; manual names are preserved.</Text>
   </ScrollView>;
 }

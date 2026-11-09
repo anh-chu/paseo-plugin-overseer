@@ -2,6 +2,16 @@
 
 Follow project sessions as they grow. Review conflicting ownership, scope drift, and departures from explicit user instructions with `gpt-6-luna` through the authenticated Codex CLI.
 
+## Install
+
+Requires Paseo 0.15.1 or later, Node.js 22 or later, and the Codex CLI on the daemon host. Authenticate Codex first. The default model is `gpt-6-luna`; choose another model supported by your account in plugin settings. No API key is required.
+
+After publication:
+
+```sh
+paseo plugin install npm:paseo-plugin-overseer
+```
+
 ## Run locally
 
 ```sh
@@ -11,7 +21,7 @@ npm test
 paseo plugin install /absolute/path/to/paseo-overseer
 ```
 
-Open **Overseer** in the sidebar or a workspace panel. Select project names in the plugin settings. Katalon is selected by default. Concerns appear beside the sidebar item and in affected session composers while the client is connected.
+Open **Overseer** in the sidebar or a workspace panel. Select projects in the plugin settings or the first-run project picker. Selection uses stable project IDs; saved name selections from earlier versions still work. No projects are selected on a new install. Concerns appear beside the sidebar item and in affected session composers while the client is connected.
 
 ## Observation
 
@@ -57,3 +67,15 @@ Unit and integration tests cover durable replay, streaming row changes, source e
 Alerts are advisory. There is no automatic interruption, reassignment, or permission override. Historical bootstrap can omit middle activity; individual activity rows are excerpted at 6,000 characters. Peer evidence is limited to recent excerpts and summaries. Live subscriptions restore after reconnect, but a daemon history gap cannot be reconstructed from a model summary. Selected activity goes to Codex using the daemon's login. State files stay under `$PASEO_HOME/plugin-data/overseer` with private file permissions.
 
 The connection adapter uses the installed Paseo CLI's connection setup because the plugin server API does not expose a standing connection at startup. It is tested against Paseo 0.15.1. It needs revalidation when that internal CLI setup changes.
+
+## Preview and release
+
+Command Center → **Preview Overseer with sample data** renders the real brief with synthetic content, without model calls or actions on sessions. Public screenshots must use this view, cropped to the plugin panel.
+
+`npm run check:package` checks the npm archive contents. `npm pack --pack-destination /tmp` creates a local release archive. Publication is separate from these checks. No runtime dependency download or build is required. Paseo compiles the TypeScript entry points.
+
+The connection adapter is tested on Linux. macOS and Windows have not been verified. It relies on the installed Paseo CLI internal connection module, so newer Paseo releases need a compatibility check.
+
+## License
+
+MIT. The Codex configuration and skill-isolation approach includes code adapted from [paseo-chat-titles](https://github.com/iarmankhan/paseo-chat-titles) by Arman Khan. See LICENSE.

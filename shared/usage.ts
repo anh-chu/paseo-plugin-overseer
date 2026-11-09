@@ -7,7 +7,7 @@ export const tokensSchema = z.object({
 });
 export type Tokens = z.infer<typeof tokensSchema>;
 export const callSchema = z.object({
-  id: z.string(), task: z.enum(["session_review", "workspace_naming"]), model: z.literal("gpt-6-luna"),
+  id: z.string(), task: z.enum(["session_review", "workspace_naming"]), model: z.string().min(1),
   projectId: z.string(), projectName: z.string(), workspaceId: z.string(), workspaceName: z.string(), sessionTitle: z.string(),
   startedAt: z.string(), finishedAt: z.string().nullable(), durationMs: z.number().nonnegative().nullable(),
   status: z.enum(["running", "completed", "failed", "canceled", "interrupted"]),

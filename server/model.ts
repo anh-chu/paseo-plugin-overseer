@@ -64,6 +64,8 @@ export function parseOutput(output: string): Analysis {
 export class Luna {
   private preparation: Promise<{ binary: string; args: string[] }> | null = null;
   private generation = Promise.resolve();
+  private model = "gpt-6-luna";
+  setModel(model: string) { this.model = model; }
   constructor(readonly directory: string, readonly usage?: UsageLedger, private readonly execute: typeof run = run) {}
   private prepare() {
     return this.preparation ??= (async () => {
@@ -89,6 +91,7 @@ export class Luna {
   }
   private async analyzeNow(session: Session, peers: Session[], events: Activity[], signal: AbortSignal, task: "session_review" | "workspace_naming") {
     if (signal.aborted) throw new Error("Observer canceled");
+    const model = this.model;
     const input = JSON.stringify({
       task,
       session: { id: session.id, title: session.title, workspaceId: session.workspaceId, workspaceTitle: session.workspaceTitle, coverage: session.coverage, previous: session.analysis },
@@ -98,13 +101,15 @@ export class Luna {
         scope: peer.analysis?.scope, resources: peer.analysis?.resources, nextAction: peer.analysis?.nextAction,
         recent: peer.recent.slice(-3).map(row => ({...row, text: row.text.slice(0, 1200)})) })),
     });
-    const callId = await this.usage?.begin({task, projectId: session.projectId, projectName: session.projectName, workspaceId: session.workspaceId,
+    const callId = await this.usage?.begin({task, model, projectId: session.projectId, projectName: session.projectName, workspaceId: session.workspaceId,
       workspaceName: session.workspaceTitle, sessionTitle: session.analysis?.suggestedName ?? session.title, inputBytes: Buffer.byteLength(input), activityCount: events.length});
     const started = performance.now();
     let output = "", status: "completed" | "failed" | "canceled" = "failed", failure: string | null = null;
     try {
       const {binary, args} = await this.prepare();
-      output = await this.execute(binary, args, input, this.directory, signal);
+      const callArgs = [...args];
+      callArgs[callArgs.indexOf("-m") + 1] = model;
+      output = await this.execute(binary, callArgs, input, this.directory, signal);
       const result = parseOutput(output); status = "completed"; return result;
     } catch (error) {
       if (error instanceof CommandError) output = error.output;
@@ -126,7 +131,7 @@ export function run(binary: string, args: string[], input: string, cwd: string, 
   return new Promise((resolveRun, reject) => {
     if (signal.aborted) return reject(new Error("Observer canceled"));
     const child = spawn(binary, args, { cwd, stdio: ["pipe", "pipe", "pipe"],
-      env: Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(PASEO_AGENT_|PASEO_PARENT_|OPENAI_|ANTHROPIC_|CLAUDECODE$)/.test(key))),
+      env: Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(PASEO_AGENT_|PASEO_PARENT_|OPENAI_|ANTHROPIC_|CODEX_API_KEY$|CLAUDECODE$)/.test(key))),
     });
     let output = "", stopped = false;
     const stop = () => { stopped = true; child.kill("SIGKILL"); };

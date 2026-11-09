@@ -18,7 +18,7 @@ async function fixture(analyze = vi.fn().mockResolvedValue(result)) {
   const refetch = vi.fn();
   const api = {agents: {ref: () => ({timeline: {refetch}})}} as unknown as PaseoApi;
   const nameWorkspace = vi.fn().mockResolvedValue(result.workspaceName);
-  const luna = {directory, analyze, nameWorkspace} as unknown as Luna;
+  const luna = {directory, analyze, nameWorkspace, setModel: vi.fn()} as unknown as Luna;
   const observer = new Observer(api, store, luna, preferences.schema.parse({}), "/tmp/not-a-daemon");
   observer.watched.set("one", vi.fn());
   running.push({observer, directory});

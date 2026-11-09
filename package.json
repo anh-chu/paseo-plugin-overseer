@@ -1,6 +1,5 @@
 {
-  "name": "paseo-overseer",
-  "private": true,
+  "name": "paseo-plugin-overseer",
   "version": "0.1.0",
   "files": [
     "paseo-plugin.json",
@@ -12,12 +11,19 @@
     "index.server.tsx",
     "client/",
     "server/",
-    "shared/"
+    "shared/",
+    "README.md",
+    "LICENSE",
+    "assets/",
+    "!**/*.test.ts",
+    "!server/smoke.ts"
   ],
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:smoke": "tsx server/smoke.ts"
+    "test:smoke": "tsx server/smoke.ts",
+    "check:package": "node scripts/check-package.mjs",
+    "prepublishOnly": "npm run typecheck && npm test && npm run check:package"
   },
   "devDependencies": {
     "@getpaseo/client": "^0.15.1",
@@ -31,5 +37,25 @@
     "typescript": "^5.9.3",
     "vitest": "^5.1.0",
     "zod": "^4.4.3"
-  }
+  },
+  "description": "Incremental project session reviews, readable names, and visible Codex usage for Paseo.",
+  "license": "MIT",
+  "author": "Anh Chu (anh-chu)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anh-chu/paseo-plugin-overseer.git"
+  },
+  "homepage": "https://github.com/anh-chu/paseo-plugin-overseer#readme",
+  "bugs": {
+    "url": "https://github.com/anh-chu/paseo-plugin-overseer/issues"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "paseo",
+    "paseo-plugin",
+    "codex",
+    "session-monitoring"
+  ]
 }

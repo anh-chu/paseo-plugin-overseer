@@ -66,13 +66,13 @@ export function UsagePanel({theme, host, layout}: PluginSurfaceProps) {
         {data.recent.map(call => <View key={call.id} style={{paddingVertical: 14, borderBottomWidth: 1, borderColor: c.border, gap: 7}}>
           <View style={{flexDirection: "row", gap: 12, justifyContent: "space-between"}}><Text style={{...text, fontWeight: "600", flex: 1}}>{taskName(call.task)}</Text><Text style={muted}>{call.status}</Text></View>
           <Text style={text}>{call.task === "workspace_naming" ? call.workspaceName : call.sessionTitle}</Text>
-          <Text style={muted}>{new Date(call.startedAt).toLocaleString()} · {call.tokens ? `${number(call.tokens.inputTokens + call.tokens.outputTokens)} tokens` : "Tokens not reported"} · {call.durationMs !== null ? `${(call.durationMs / 1000).toFixed(1)} s` : call.status === "running" ? "In progress" : "Duration unknown"}</Text>
+          <Text style={muted}>{call.model} · {new Date(call.startedAt).toLocaleString()} · {call.tokens ? `${number(call.tokens.inputTokens + call.tokens.outputTokens)} tokens` : "Tokens not reported"} · {call.durationMs !== null ? `${(call.durationMs / 1000).toFixed(1)} s` : call.status === "running" ? "In progress" : "Duration unknown"}</Text>
           {call.error && <Text style={muted}>{call.error}</Text>}
         </View>)}
       </View>}
       <View style={{gap: 8, paddingVertical: 12}}>
         <Text style={muted}>Recording since {new Date(data.startedAt).toLocaleString()}. Earlier calls were not recorded.</Text>
-        <Text style={muted}>gpt-6-luna via Codex. Account charges are not returned by Codex.</Text>
+        <Text style={muted}>Codex usage. Account charges are not returned by Codex.</Text>
       </View>
     </>}
   </View>;
