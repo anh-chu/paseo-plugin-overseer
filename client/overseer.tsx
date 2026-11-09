@@ -22,8 +22,8 @@ export function OverseerScreen({ theme, layout, navigation, host, params }: Plug
   useEffect(() => { if (params.sessionId) {setSelected(params.sessionId); setView("sessions");} }, [params.sessionId]);
   useEffect(() => { if (params.view === "usage") setView("usage"); }, [params.view]);
   const colors = theme.colors;
-  const text = { color: colors.foreground, fontSize: 15 };
-  const muted = { color: colors.foregroundMuted, fontSize: 13 };
+  const text = { color: colors.foreground, fontSize: 13 };
+  const muted = { color: colors.foregroundMuted, fontSize: 11 };
   const sessions = (query.data?.sessions ?? []).filter(session => !params.workspaceId || session.workspaceId === params.workspaceId);
   const visibleFindings = (session: SessionView) => (session.analysis?.findings ?? []).filter(finding => !query.data?.dismissed.includes(findingKey(session.id, finding)));
   const concerns = sessions.reduce((count, session) => count + visibleFindings(session).length, 0);
@@ -32,20 +32,22 @@ export function OverseerScreen({ theme, layout, navigation, host, params }: Plug
     (result[session.workspaceId] ??= []).push(session); return result;
   }, {})).sort(([,a], [,b]) => Number(b.some(session => session.status === "running")) - Number(a.some(session => session.status === "running")));
   const button = (label: string, onPress: () => void, strong = false) => <Pressable key={label} accessibilityRole="button" accessibilityLabel={label} disabled={mutation.isPending}
-    onPress={onPress} style={{ paddingHorizontal: 11, paddingVertical: 7, borderRadius: 6, backgroundColor: strong ? colors.foreground : colors.surface2, opacity: mutation.isPending ? 0.5 : 1 }}>
-    <Text style={{ ...text, fontSize: 13, fontWeight: "600", color: strong ? colors.surface0 : colors.foreground }}>{label}</Text>
+    onPress={onPress} style={{ paddingHorizontal: 9, paddingVertical: 6, borderRadius: 5, backgroundColor: strong ? colors.foreground : colors.surface2, opacity: mutation.isPending ? 0.5 : 1 }}>
+    <Text style={{ ...text, fontSize: 12, fontWeight: "600", color: strong ? colors.surface0 : colors.foreground }}>{label}</Text>
   </Pressable>;
   const action = (session: SessionView, kind: "review" | "rename" | "renameWorkspace" | "lock" | "lockWorkspace") => mutation.mutate({ sessionId: session.id, action: kind });
-  return <ScrollView style={{ flex: 1, backgroundColor: colors.surface0 }} contentContainerStyle={{ padding: layout.compact ? 12 : 20, gap: 14, maxWidth: 1200, width: "100%", alignSelf: "center" }}>
-    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+  return <ScrollView style={{ flex: 1, backgroundColor: colors.surface0 }} contentContainerStyle={{ padding: layout.compact ? 10 : 16, gap: 12, maxWidth: 1200, width: "100%", alignSelf: "center" }}>
+    <View style={{gap: 7, padding: 8, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, borderRadius: 8}}>
+    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
     <View style={{flexDirection: "row", gap: 6}}>
       {button("Brief", () => setView("brief"), view === "brief")}
       {button("Sessions", () => setView("sessions"), view === "sessions")}
       {button("Usage", () => setView("usage"), view === "usage")}
     </View>
-      <Text style={{...muted, fontSize: 12}}>{query.data?.enabled ? `${sessions.filter(session => session.status !== "not watched").length} watched` : "Paused"}{query.data?.busy ? " · Reviewing" : ""}</Text>
+      <Text style={muted}>{query.data?.enabled ? `${sessions.filter(session => session.status !== "not watched").length} watched` : "Paused"}{query.data?.busy ? " · Reviewing" : ""}</Text>
     </View>
     <AutomationControls theme={theme} onSaved={() => { void query.refetch(); }} />
+    </View>
     {view === "usage" ? <UsagePanel theme={theme} host={host} layout={layout} navigation={navigation} /> : view === "brief" ? <>
       {(query.error || query.data?.error) && <Text accessibilityRole="alert" style={text}>{query.error?.message ?? query.data?.error}</Text>}
       {query.isPending ? <ActivityIndicator color={colors.foreground} /> : <ProjectBrief theme={theme} layout={layout} sessions={sessions} dismissed={query.data?.dismissed ?? []} enabled={query.data?.enabled ?? false}
@@ -60,14 +62,14 @@ export function OverseerScreen({ theme, layout, navigation, host, params }: Plug
         {button("All sessions", () => {setOnlyConcerns(false); setInboxProject(null);}, !onlyConcerns && !inboxProject)}
         {button(`${concerns} concerns`, () => {setOnlyConcerns(true); setInboxProject(null);}, onlyConcerns)}
       </View>
-      {inboxProject && <Text style={{...text, fontSize: 20, fontWeight: "700"}}>Inbox · {sessions.find(session => session.projectId === inboxProject)?.projectName}</Text>}
+      {inboxProject && <Text style={{...text, fontSize: 16, fontWeight: "700"}}>Inbox · {sessions.find(session => session.projectId === inboxProject)?.projectName}</Text>}
       {groups.map(([workspaceId, entries]) => <View key={workspaceId} style={{gap: 4}}>
-        <Text style={{...text, fontWeight: "700", fontSize: 20, marginTop: 8}}>{entries[0].workspaceTitle}</Text>
+        <Text style={{...text, fontWeight: "700", fontSize: 16, marginTop: 8}}>{entries[0].workspaceTitle}</Text>
         {(expanded.includes(workspaceId) || onlyConcerns ? entries : entries.slice(0, 3)).map(session => <Pressable key={session.id}
         accessibilityRole="button" accessibilityLabel={`Review ${session.analysis?.suggestedName ?? session.title}`}
         onPress={() => setSelected(session.id)} style={{ paddingVertical: 18, borderBottomWidth: 1, borderColor: colors.border, gap: 8 }}>
         <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 16 }}>
-          <Text style={{ ...text, flex: 1, fontWeight: "600", fontSize: 18 }}>{session.analysis?.suggestedName ?? session.title}</Text>
+          <Text style={{ ...text, flex: 1, fontWeight: "600", fontSize: 15 }}>{session.analysis?.suggestedName ?? session.title}</Text>
           <Text style={muted}>{visibleFindings(session).length ? `${visibleFindings(session).length} concerns` : session.error ? "Needs attention" : session.pendingCount ? "Review pending" : session.updatedAt ? "Reviewed" : "Waiting for activity"}</Text>
         </View>
         {session.analysis && <Text style={text}>{session.analysis.purpose}</Text>}
@@ -84,16 +86,16 @@ export function OverseerScreen({ theme, layout, navigation, host, params }: Plug
         {button("Review now", () => action(current, "review"))}
       </View>
       <View style={{ gap: 10 }}>
-        <Text style={{ ...text, fontSize: 26, fontWeight: "700" }}>{current.analysis?.suggestedName ?? current.title}</Text>
+        <Text style={{ ...text, fontSize: 21, fontWeight: "700" }}>{current.analysis?.suggestedName ?? current.title}</Text>
         <Text style={muted}>{current.projectName} / {current.workspaceTitle}</Text>
-        {current.analysis && <Text style={{ ...text, fontSize: 17, lineHeight: 26 }}>{current.analysis.purpose}</Text>}
+        {current.analysis && <Text style={{ ...text, fontSize: 14, lineHeight: 21 }}>{current.analysis.purpose}</Text>}
         <Text style={muted}>{current.coverage === "partial" ? "Earlier history is incomplete. Watching new activity." : current.coverage === "recovering" ? "Recovering missed activity." : "Following session activity."}{current.pendingCount ? ` ${current.pendingCount} updates await review.` : ""}</Text>
         {current.error && <Text accessibilityRole="alert" style={text}>{current.error}</Text>}
       </View>
       {visibleFindings(current).map(finding => {
         const key = findingKey(current.id, finding);
         return <View key={key} style={{ backgroundColor: colors.surface1, padding: 20, borderRadius: 12, gap: 12 }}>
-          <Text style={{ ...text, fontWeight: "700", fontSize: 18 }}>{finding.title}</Text>
+          <Text style={{ ...text, fontWeight: "700", fontSize: 15 }}>{finding.title}</Text>
           <Text style={text}>{finding.detail}</Text>
           <Text style={{ ...text, fontWeight: "600" }}>{finding.action}</Text>
           <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
@@ -108,12 +110,12 @@ export function OverseerScreen({ theme, layout, navigation, host, params }: Plug
         </View>;
       })}
       {current.analysis && <>
-        {current.analysis.needsDecision.length > 0 && <View style={{gap: 14}}><Text style={{...text, fontSize: 18, fontWeight: "700"}}>Needs your decision</Text>{current.analysis.needsDecision.map((request, index) => <View key={index} style={{gap: 8}}><Text style={text}>{request.question}</Text><Text selectable style={muted}>{request.evidence.quote}</Text></View>)}</View>}
-        <View style={{ gap: 10 }}><Text style={{ ...text, fontSize: 18, fontWeight: "700" }}>Agreed scope</Text>{current.analysis.scope.map((scope, index) => <Text key={index} style={text}>{scope}</Text>)}</View>
-        {current.analysis.decisions.length > 0 && <View style={{ gap: 10 }}><Text style={{ ...text, fontSize: 18, fontWeight: "700" }}>Decisions</Text>{current.analysis.decisions.map((decision, index) => <Text key={index} style={text}>{decision}</Text>)}</View>}
-        {current.analysis.nextAction && <View style={{ gap: 10 }}><Text style={{ ...text, fontSize: 18, fontWeight: "700" }}>Next action</Text><Text style={text}>{current.analysis.nextAction}</Text></View>}
+        {current.analysis.needsDecision.length > 0 && <View style={{gap: 14}}><Text style={{...text, fontSize: 15, fontWeight: "700"}}>Needs your decision</Text>{current.analysis.needsDecision.map((request, index) => <View key={index} style={{gap: 8}}><Text style={text}>{request.question}</Text><Text selectable style={muted}>{request.evidence.quote}</Text></View>)}</View>}
+        <View style={{ gap: 10 }}><Text style={{ ...text, fontSize: 15, fontWeight: "700" }}>Agreed scope</Text>{current.analysis.scope.map((scope, index) => <Text key={index} style={text}>{scope}</Text>)}</View>
+        {current.analysis.decisions.length > 0 && <View style={{ gap: 10 }}><Text style={{ ...text, fontSize: 15, fontWeight: "700" }}>Decisions</Text>{current.analysis.decisions.map((decision, index) => <Text key={index} style={text}>{decision}</Text>)}</View>}
+        {current.analysis.nextAction && <View style={{ gap: 10 }}><Text style={{ ...text, fontSize: 15, fontWeight: "700" }}>Next action</Text><Text style={text}>{current.analysis.nextAction}</Text></View>}
         <View style={{ gap: 14, paddingVertical: 20, borderTopWidth: 1, borderColor: colors.border }}>
-          <Text style={{ ...text, fontSize: 18, fontWeight: "700" }}>Names</Text>
+          <Text style={{ ...text, fontSize: 15, fontWeight: "700" }}>Names</Text>
           <Text style={muted}>Current tab: {current.title}</Text>
           <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
             {current.title !== current.analysis.suggestedName && button(`Use “${current.analysis.suggestedName}”`, () => action(current, "rename"))}

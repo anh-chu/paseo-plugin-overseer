@@ -11,9 +11,9 @@ export function AutomationControls({theme, onSaved}: Pick<PluginSurfaceProps, "t
     aria-checked={settings.values[key]} aria-disabled={settings.saving}
     disabled={settings.saving} onPress={() => {
       void settings.save({...settings.values, [key]: !settings.values[key]} as Settings, settings.revision).then(onSaved).catch(() => {});
-    }} style={{flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 6, backgroundColor: theme.colors.surface1, opacity: settings.saving ? 0.5 : 1}}>
-    <Text style={{color: theme.colors.foreground, fontSize: 12, fontWeight: "600"}}>{label}</Text>
-    <Text style={{color: theme.colors.foregroundMuted, fontSize: 12}}>{settings.values[key] ? "On" : "Off"}</Text>
+    }} style={{flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 5, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface0, opacity: settings.saving ? 0.5 : 1}}>
+    <Text style={{color: theme.colors.foreground, fontSize: 11, fontWeight: "600"}}>{label}</Text>
+    <Text style={{color: theme.colors.foregroundMuted, fontSize: 11}}>{settings.values[key] ? "On" : "Off"}</Text>
   </Pressable>;
   return <View style={{gap: 6}}>
     <View style={{flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 6}}>
